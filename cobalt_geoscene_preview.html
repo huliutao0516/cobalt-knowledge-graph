@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -20,33 +20,36 @@
     </div>
   </div>
 </div>
+
 <div id="app">
   <header class="topbar">
-    <div class="brand">钴供应链知识图谱</div>
-    <div>
-      <h1>钴全球供应链知识图谱平台</h1>
-      <p>GeoScene 风格空间图谱预览，支持搜索、区域钻取、详情卡片和上下游分层追踪</p>
-    </div>
+    <div class="brand">KNOWLEDGE GRAPH PLATFORM</div>
+    <h1>钴全球供应链知识图谱平台</h1>
+    <p>GeoScene 风格总览、区域映射、分层链路和关系明细联动展示</p>
   </header>
 
-  <aside class="rail panel">
-    <button id="resetBtn" title="重置">复</button>
+  <aside class="toolbar panel">
+    <button id="resetBtn" title="重置筛选">复</button>
     <button id="zoomInBtn" title="放大">+</button>
     <button id="zoomOutBtn" title="缩小">-</button>
-    <button id="labelsBtn" class="is-on" title="标签">标</button>
-    <button id="densityBtn" title="密度">密</button>
-    <button id="rotateBtn" class="is-on" title="旋转">转</button>
+    <button id="labelsBtn" class="is-on" title="标签开关">标</button>
+    <button id="densityBtn" title="关系密度">密</button>
+    <button id="rotateBtn" class="is-on" title="自动旋转">转</button>
   </aside>
 
-  <section class="panel query-panel">
+  <div class="focus-chip panel">
+    <div id="focusTitle" class="focus-title">全球总览</div>
+    <div id="focusSub" class="focus-sub">拖动或缩放地球后，底部区域映射会自动跟随当前视角</div>
+  </div>
+
+  <section class="panel search-panel">
     <div class="panel-head">
       <span>搜索与筛选</span>
-      <span id="queryMeta" class="meta">全链路视图</span>
+      <span id="queryMeta" class="meta">全链路视角</span>
     </div>
     <div class="panel-body">
       <label class="field-label" for="searchInput">搜索企业 / 矿点 / 设施</label>
       <input id="searchInput" type="text" placeholder="输入企业、矿点或设施名称">
-      <div class="results" id="results"></div>
 
       <div class="two-col compact-top">
         <div>
@@ -56,70 +59,88 @@
         <div>
           <label class="field-label" for="textureSelect">地球影像</label>
           <select id="textureSelect">
-            <option value="balanced">本地流畅版</option>
+            <option value="github">GitHub 开源高清版</option>
             <option value="sharp">本地高清版</option>
-            <option value="github">GitHub 高清版</option>
+            <option value="balanced">本地流畅版</option>
           </select>
         </div>
       </div>
 
       <div class="status-row compact-top">
-        <div id="statusText" class="meta strong">当前显示全部交易关系</div>
+        <div id="statusText" class="meta strong">正在载入关系数据</div>
         <button id="clearBtn" class="mini-btn">清空</button>
       </div>
+
       <div id="chips" class="chips compact-top"></div>
       <div id="textureHint" class="subnote compact-top"></div>
+
+      <div class="section-title compact-top">类别图例</div>
+      <div id="legendList" class="legend-list"></div>
+
+      <div class="section-title compact-top">实体结果</div>
+      <div id="results" class="results"></div>
     </div>
   </section>
 
-  <section class="panel detail-panel">
+  <section class="panel info-panel">
     <div class="panel-head">
-      <span>概要信息</span>
-      <span id="detailMeta" class="meta">全局概览</span>
+      <span>关系与详情</span>
+      <span id="infoMeta" class="meta">当前未锁定实体</span>
     </div>
-    <div id="detailBody" class="panel-body"></div>
-  </section>
+    <div class="panel-body info-body">
+      <section class="section-block">
+        <div class="section-title">实体概况</div>
+        <div id="summaryBody"></div>
+      </section>
 
-  <section class="panel card-panel is-hidden" id="infoCard">
-    <div class="panel-head">
-      <span>详情卡片</span>
-      <button id="closeCardBtn" class="ghost-btn">关闭</button>
-    </div>
-    <div id="cardBody" class="panel-body"></div>
-  </section>
+      <section class="section-block">
+        <div class="section-title">选中关系</div>
+        <div id="txBody"></div>
+      </section>
 
-  <section class="panel region-panel">
-    <div class="panel-head">
-      <span>区域钻取</span>
-      <span id="regionMeta" class="meta">当前筛选范围内的二维局部关系</span>
-    </div>
-    <div class="panel-body">
-      <div id="regionCaption" class="subnote"></div>
-      <svg id="regionSvg" viewBox="0 0 960 520" preserveAspectRatio="none"></svg>
+      <section class="section-block grow">
+        <div class="section-title">关系明细</div>
+        <div id="relationList" class="relation-list"></div>
+      </section>
     </div>
   </section>
 
-  <section class="panel flow-panel">
-    <div class="panel-head">
-      <span>环节流向</span>
-      <span id="flowMeta" class="meta">环节到环节的关系迁移</span>
-    </div>
-    <div class="panel-body">
-      <div id="flowCaption" class="subnote"></div>
-      <svg id="flowSvg" viewBox="0 0 1200 560" preserveAspectRatio="none"></svg>
-    </div>
-  </section>
+  <div class="dock">
+    <section class="panel region-panel">
+      <div class="panel-head">
+        <span>区域映射</span>
+        <span id="regionMeta" class="meta">当前视角区域内的空间落点</span>
+      </div>
+      <div class="panel-body">
+        <div id="regionCaption" class="subnote"></div>
+        <div id="regionStats" class="chips compact-top"></div>
+        <svg id="regionSvg" viewBox="0 0 1100 560" preserveAspectRatio="none"></svg>
+      </div>
+    </section>
 
-  <section class="panel hierarchy-panel">
-    <div class="panel-head">
-      <span>上下游分层</span>
-      <span id="hierarchyMeta" class="meta">围绕当前实体展开</span>
-    </div>
-    <div id="hierarchyBody" class="panel-body"></div>
-  </section>
+    <section class="panel chain-panel">
+      <div class="panel-head">
+        <span>知识图谱</span>
+        <span id="chainMeta" class="meta">按供应链环节分层展开</span>
+      </div>
+      <div class="panel-body">
+        <div id="chainCaption" class="subnote"></div>
+        <svg id="chainSvg" viewBox="0 0 1320 560" preserveAspectRatio="none"></svg>
+      </div>
+    </section>
+
+    <section class="panel hierarchy-panel">
+      <div class="panel-head">
+        <span>上下游分层</span>
+        <span id="hierarchyMeta" class="meta">围绕当前焦点实体</span>
+      </div>
+      <div id="hierarchyBody" class="panel-body"></div>
+    </section>
+  </div>
 
   <div id="tooltip"></div>
 </div>
+
 <script src="assets/cobalt_geoscene_app.js"></script>
 </body>
 </html>

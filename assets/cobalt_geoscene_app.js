@@ -1,1041 +1,1667 @@
 (() => {
-const DATA = window.COBALT_GEOSCENE_DATA;
-if (!DATA || !Array.isArray(DATA.transactions)) {
-  document.body.innerHTML = "<div style='padding:32px;color:#fff;font-family:Segoe UI,Microsoft YaHei,sans-serif'>缺少数据文件，请先运行 scripts/build_cobalt_geoscene_data.ps1。</div>";
-  return;
-}
+  const DATA = window.COBALT_GEOSCENE_DATA;
 
-const byId = (id) => document.getElementById(id);
-const fmt = new Intl.NumberFormat("zh-CN");
-const toArray = (value) => Array.isArray(value)
-  ? value
-  : (value && typeof value === "object"
-      ? Object.values(value).filter(Boolean)
-      : (value === null || value === undefined || value === "" ? [] : [value]));
-const esc = (value) => String(value ?? "")
-  .replaceAll("&", "&amp;")
-  .replaceAll("<", "&lt;")
-  .replaceAll(">", "&gt;")
-  .replaceAll('"', "&quot;");
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-const short = (value, limit = 18) => {
-  const text = String(value || "").trim();
-  if (!text) return "未命名";
-  return text.length > limit ? `${text.slice(0, Math.max(1, limit - 1))}…` : text;
-};
-const isNum = (value) => Number.isFinite(Number(value));
-const entityLabel = (entity) => entity ? (entity.type === "facility" ? (entity.displayName || entity.searchLabel || entity.name) : entity.name) : "全局";
-const txAmount = (tx) => tx.amountTonnesRaw || tx.amountUnitsRaw || tx.amountUsdRaw || tx.amountYuanRaw || tx.amountEnergyRaw || "未标注";
-const txDate = (tx) => tx.date || tx.expectedDate || "未标注";
-const stageOrder = DATA.stageOrder || [];
-const stageColors = DATA.stageColors || {};
-const stageLookup = new Map(stageOrder.map((stage) => [String(stage).toLowerCase(), stage]));
-const FILE_PROTOCOL_HINT = window.location.protocol === "file:"
-  ? "如果直接双击打开仍看不到三维地球，请运行 scripts/start_preview_server.ps1，再访问 http://127.0.0.1:8765/cobalt_geoscene_preview.html。"
-  : "";
-const normalizeStage = (value) => stageLookup.get(String(value || "").toLowerCase()) || value || "Unknown";
-
-const STAGE_LABELS = {
-  "Artisanal mining": "手采矿",
-  "Mining": "采矿",
-  "Artisanal processing": "手工加工",
-  "Smelting": "冶炼",
-  "Refining": "精炼",
-  "Trading": "贸易",
-  "Precursor manufacturing": "前驱体制造",
-  "Cathode manufacturing": "正极材料制造",
-  "Battery cell manufacturing": "电芯制造",
-  "Battery pack manufacturing": "电池包制造",
-  "Electric car manufacturing": "电动汽车制造",
-  "Electric scooter manufacturing": "电动两轮制造",
-  "Recycling": "回收"
-};
-
-const COUNTRY_LABELS = new Map(Object.entries({
-  china: "中国",
-  "democratic republic of the congo": "刚果（金）",
-  "dr congo": "刚果（金）",
-  drc: "刚果（金）",
-  congo: "刚果（金）",
-  zambia: "赞比亚",
-  indonesia: "印度尼西亚",
-  finland: "芬兰",
-  germany: "德国",
-  france: "法国",
-  belgium: "比利时",
-  switzerland: "瑞士",
-  japan: "日本",
-  "south korea": "韩国",
-  korea: "韩国",
-  singapore: "新加坡",
-  canada: "加拿大",
-  australia: "澳大利亚",
-  usa: "美国",
-  "u.s.": "美国",
-  "u.s.a.": "美国",
-  "united states": "美国",
-  "united states of america": "美国",
-  uk: "英国",
-  "united kingdom": "英国",
-  england: "英国",
-  netherlands: "荷兰",
-  norway: "挪威",
-  sweden: "瑞典",
-  poland: "波兰",
-  india: "印度",
-  philippines: "菲律宾",
-  luxembourg: "卢森堡",
-  portugal: "葡萄牙",
-  spain: "西班牙",
-  italy: "意大利",
-  austria: "奥地利",
-  southafrica: "南非",
-  "south africa": "南非",
-  morocco: "摩洛哥",
-  argentina: "阿根廷",
-  chile: "智利",
-  mexico: "墨西哥",
-  taiwan: "中国台湾",
-  "hong kong": "中国香港",
-  tanzania: "坦桑尼亚",
-  brazil: "巴西",
-  turkey: "土耳其",
-  vietnam: "越南"
-}));
-
-const POINT_ORIGIN_LABELS = {
-  facility: "设施坐标",
-  company: "企业坐标",
-  centroid: "区域中心点",
-  inferred: "推定坐标"
-};
-
-const TEXTURES = {
-  balanced: {
-    label: "本地流畅版",
-    url: "assets/earth_satellite_1350.jpg",
-    hint: "使用本地流畅版地球影像，优先保证页面顺滑。"
-  },
-  sharp: {
-    label: "本地高清版",
-    url: "assets/earth_satellite_5400.jpg",
-    hint: "使用本地高清版地球影像，细节更高。"
-  },
-  github: {
-    label: "GitHub 高清版",
-    url: "assets/earth_github_4096.jpg",
-    hint: "使用 GitHub 开源项目 live-cloud-maps 的高清地球影像，并已缓存到本地。"
+  if (!DATA || !Array.isArray(DATA.transactions)) {
+    document.body.innerHTML = "<div style='padding:32px;color:#fff;font-family:Segoe UI,Microsoft YaHei,sans-serif'>缺少数据文件，请先运行 scripts/build_cobalt_geoscene_data.ps1。</div>";
+    return;
   }
-};
 
-const entities = new Map((DATA.entities || []).map((entity) => [
-  entity.id,
-  {
-    ...entity,
-    roleTags: toArray(entity.roleTags),
-    companyTypeTags: toArray(entity.companyTypeTags)
-  }
-]));
-const sources = new Map((DATA.sources || []).map((source) => [source.id, source]));
-const transactions = (DATA.transactions || []).map((tx) => ({
-  ...tx,
-  supplierStage: normalizeStage(tx.supplierStage),
-  buyerStage: normalizeStage(tx.buyerStage),
-  inputCommodityIds: toArray(tx.inputCommodityIds),
-  inputCommodities: toArray(tx.inputCommodities),
-  outputCommodityIds: toArray(tx.outputCommodityIds),
-  outputCommodities: toArray(tx.outputCommodities),
-  sourceIds: toArray(tx.sourceIds),
-  notes: toArray(tx.notes)
-}));
+  const byId = (id) => document.getElementById(id);
+  const fmt = new Intl.NumberFormat("zh-CN");
+  const esc = (value) => String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const isNum = (value) => Number.isFinite(Number(value));
+  const toArray = (value) => Array.isArray(value)
+    ? value.filter((item) => item !== null && item !== undefined && item !== "")
+    : (value === null || value === undefined || value === "" ? [] : [value]);
+  const safeText = (value, fallback = "未标注") => {
+    const text = String(value ?? "").trim();
+    return text || fallback;
+  };
+  const shortText = (value, limit = 22) => {
+    const text = safeText(value, "未命名");
+    return text.length > limit ? `${text.slice(0, Math.max(1, limit - 1))}…` : text;
+  };
+  const withAlpha = (hex, alpha = "ff") => {
+    const text = String(hex || "").trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(text)) return `${text}${alpha}`;
+    return text || "#7fd0ff";
+  };
 
-const companyTransactions = new Map();
-const facilityTransactions = new Map();
-const companyFacilities = new Map();
-const facilityCompany = new Map();
-const pushMap = (map, key, value) => {
-  if (!key) return;
-  if (!map.has(key)) map.set(key, []);
-  map.get(key).push(value);
-};
+  const STAGE_LABELS = {
+    "Artisanal mining": "手工采矿",
+    "Mining": "采矿",
+    "Artisanal processing": "手工加工",
+    "Smelting": "冶炼",
+    "Refining": "精炼",
+    "Trading": "贸易",
+    "Precursor manufacturing": "前驱体制造",
+    "Cathode manufacturing": "正极材料制造",
+    "Battery cell manufacturing": "电芯制造",
+    "Battery pack manufacturing": "电池包制造",
+    "Electric car manufacturing": "电动汽车制造",
+    "Electric scooter manufacturing": "电动两轮制造",
+    "Recycling": "回收"
+  };
 
-(DATA.operatorPairs || []).forEach((pair) => {
-  pushMap(companyFacilities, pair.companyId, pair.facilityId);
-  if (!facilityCompany.has(pair.facilityId)) facilityCompany.set(pair.facilityId, pair.companyId);
-});
+  const COUNTRY_LABELS = new Map(Object.entries({
+    china: "中国",
+    "democratic republic of the congo": "刚果（金）",
+    "dr congo": "刚果（金）",
+    drc: "刚果（金）",
+    congo: "刚果（金）",
+    zambia: "赞比亚",
+    indonesia: "印度尼西亚",
+    finland: "芬兰",
+    germany: "德国",
+    france: "法国",
+    belgium: "比利时",
+    switzerland: "瑞士",
+    japan: "日本",
+    "south korea": "韩国",
+    korea: "韩国",
+    singapore: "新加坡",
+    canada: "加拿大",
+    australia: "澳大利亚",
+    usa: "美国",
+    "u.s.": "美国",
+    "u.s.a.": "美国",
+    "united states": "美国",
+    "united states of america": "美国",
+    uk: "英国",
+    "united kingdom": "英国",
+    england: "英国",
+    netherlands: "荷兰",
+    norway: "挪威",
+    sweden: "瑞典",
+    poland: "波兰",
+    india: "印度",
+    philippines: "菲律宾",
+    luxembourg: "卢森堡",
+    portugal: "葡萄牙",
+    spain: "西班牙",
+    italy: "意大利",
+    austria: "奥地利",
+    "south africa": "南非",
+    southafrica: "南非",
+    morocco: "摩洛哥",
+    argentina: "阿根廷",
+    chile: "智利",
+    mexico: "墨西哥",
+    taiwan: "中国台湾",
+    "hong kong": "中国香港",
+    tanzania: "坦桑尼亚",
+    brazil: "巴西",
+    turkey: "土耳其",
+    vietnam: "越南"
+  }));
 
-transactions.forEach((tx) => {
-  pushMap(companyTransactions, tx.supplierCompanyId, tx);
-  pushMap(companyTransactions, tx.buyerCompanyId, tx);
-  pushMap(facilityTransactions, tx.supplierFacilityId, tx);
-  pushMap(facilityTransactions, tx.buyerFacilityId, tx);
-});
+  const POINT_ORIGIN_LABELS = {
+    facility: "设施坐标",
+    company: "企业坐标",
+    centroid: "区域中心点",
+    inferred: "推定坐标"
+  };
 
-const searchCatalog = [...entities.values()].map((entity) => {
-  const count = entity.type === "company"
-    ? (companyTransactions.get(entity.id) || []).length
-    : (facilityTransactions.get(entity.id) || []).length;
-  return {
+  const ENTITY_TYPE_LABELS = {
+    company: "企业",
+    facility: "矿点/设施"
+  };
+
+  const TEXTURES = {
+    github: {
+      label: "GitHub 开源高清版",
+      url: "assets/earth_github_4096.jpg",
+      hint: "已使用 GitHub 开源地球纹理的本地缓存版本，兼顾清晰度和加载速度。"
+    },
+    sharp: {
+      label: "本地高清版",
+      url: "assets/earth_satellite_5400.jpg",
+      hint: "当前使用本地高清纹理，细节更丰富。"
+    },
+    balanced: {
+      label: "本地流畅版",
+      url: "assets/earth_satellite_1350.jpg",
+      hint: "当前使用本地流畅纹理，优先保证交互性能。"
+    }
+  };
+
+  const FILE_PROTOCOL_HINT = window.location.protocol === "file:"
+    ? "如果你是直接双击 HTML 打开，建议运行 scripts/start_preview_server.ps1，再访问 http://127.0.0.1:8765/cobalt_geoscene_preview.html。"
+    : "";
+
+  const stageOrder = DATA.stageOrder || [];
+  const stageColors = DATA.stageColors || {};
+  const stageLookup = new Map(stageOrder.map((stage) => [String(stage).toLowerCase(), stage]));
+
+  const entities = new Map((DATA.entities || []).map((entity) => [entity.id, entity]));
+  const sources = new Map((DATA.sources || []).map((source) => [source.id, source]));
+  const transactions = (DATA.transactions || []).map((tx) => ({
+    ...tx,
+    supplierStage: stageLookup.get(String(tx.supplierStage || "").toLowerCase()) || tx.supplierStage || "Unknown",
+    buyerStage: stageLookup.get(String(tx.buyerStage || "").toLowerCase()) || tx.buyerStage || "Unknown",
+    inputCommodities: toArray(tx.inputCommodities),
+    outputCommodities: toArray(tx.outputCommodities),
+    inputCommodityIds: toArray(tx.inputCommodityIds),
+    outputCommodityIds: toArray(tx.outputCommodityIds),
+    sourceIds: toArray(tx.sourceIds),
+    notes: toArray(tx.notes)
+  }));
+  const txById = new Map(transactions.map((tx) => [tx.id, tx]));
+
+  const companyFacilities = new Map();
+  const facilityCompany = new Map();
+  const txByEntity = new Map();
+
+  const pushMapArray = (map, key, value) => {
+    if (!key) return;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(value);
+  };
+
+  (DATA.operatorPairs || []).forEach((pair) => {
+    pushMapArray(companyFacilities, pair.companyId, pair.facilityId);
+    if (pair.facilityId && !facilityCompany.has(pair.facilityId)) facilityCompany.set(pair.facilityId, pair.companyId);
+  });
+
+  transactions.forEach((tx) => {
+    [tx.supplierCompanyId, tx.buyerCompanyId, tx.supplierFacilityId, tx.buyerFacilityId].filter(Boolean).forEach((id) => {
+      pushMapArray(txByEntity, id, tx);
+    });
+  });
+
+  const searchCatalog = [...entities.values()].map((entity) => ({
     id: entity.id,
     type: entity.type,
-    name: entityLabel(entity),
+    name: entity.name,
     country: entity.country || "",
-    count,
-    blob: [entity.name, entity.searchLabel, entity.displayName, entity.place, entity.country, ...entity.roleTags, ...entity.companyTypeTags]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase()
-  };
-}).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "en"));
+    count: (txByEntity.get(entity.id) || []).length,
+    blob: [
+      entity.name,
+      entity.searchLabel,
+      entity.displayName,
+      entity.place,
+      entity.country,
+      entity.facilityType
+    ].filter(Boolean).join(" ").toLowerCase()
+  })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "en"));
 
-const state = {
-  stage: "all",
-  entityId: "",
-  selectedTxId: "",
-  labels: true,
-  dense: false,
-  rotate: true,
-  texture: "balanced",
-  pointerX: 0,
-  pointerY: 0,
-  card: null,
-  textureWarning: "",
-  globeNotice: "",
-  globeMode: "pending"
-};
+  const tooltip = byId("tooltip");
+  const earthFallback = byId("earthFallback");
+  const earthSphere = earthFallback ? earthFallback.querySelector(".earth-sphere") : null;
+  const globeHost = byId("globe");
 
-let globe = null;
-const tooltip = byId("tooltip");
-const earthFallback = byId("earthFallback");
-const earthSphere = earthFallback ? earthFallback.querySelector(".earth-sphere") : null;
-
-function displayStage(stage) {
-  return STAGE_LABELS[stage] || stage || "未标注";
-}
-
-function displayCountry(country) {
-  const raw = String(country || "").trim();
-  if (!raw) return "未标注";
-  return COUNTRY_LABELS.get(raw.toLowerCase()) || raw;
-}
-
-function displayEntityType(type) {
-  return type === "company" ? "企业" : "设施";
-}
-
-function displayPointOrigin(origin) {
-  return POINT_ORIGIN_LABELS[String(origin || "").toLowerCase()] || (origin || "未标注");
-}
-
-function displayFacilityType(value) {
-  let text = String(value || "").trim();
-  if (!text) return "";
-  const replacements = [
-    [/Headquarter/gi, "总部"],
-    [/Battery pack plant/gi, "电池包装配厂"],
-    [/Battery cell plant/gi, "电芯工厂"],
-    [/Battery plant/gi, "电池工厂"],
-    [/Electric car plant/gi, "电动汽车工厂"],
-    [/Electric scooter plant/gi, "电动两轮工厂"],
-    [/Cathode Plant/gi, "正极材料厂"],
-    [/Precursor Plant/gi, "前驱体工厂"],
-    [/Refinery/gi, "精炼厂"],
-    [/Smelter/gi, "冶炼厂"],
-    [/Processing plant/gi, "加工厂"],
-    [/Battery pack/gi, "电池包"],
-    [/Mine/gi, "矿点"],
-    [/Port/gi, "港口"],
-    [/Plant/gi, "工厂"],
-    [/Factory/gi, "工厂"],
-    [/Office/gi, "办公室"]
-  ];
-  replacements.forEach(([pattern, replacement]) => {
-    text = text.replace(pattern, replacement);
-  });
-  return text;
-}
-
-function currentEntity() {
-  return state.entityId ? entities.get(state.entityId) || null : null;
-}
-
-function stageFilteredTransactions() {
-  if (state.stage === "all") return transactions;
-  return transactions.filter((tx) => tx.supplierStage === state.stage || tx.buyerStage === state.stage);
-}
-
-function focusedTransactions() {
-  const base = stageFilteredTransactions();
-  if (!state.entityId) return base;
-  const entity = currentEntity();
-  if (!entity) return base;
-  const set = new Set();
-  if (entity.type === "company") {
-    (companyTransactions.get(entity.id) || []).forEach((tx) => set.add(tx.id));
-    (companyFacilities.get(entity.id) || []).forEach((facilityId) => {
-      (facilityTransactions.get(facilityId) || []).forEach((tx) => set.add(tx.id));
-    });
-  } else {
-    (facilityTransactions.get(entity.id) || []).forEach((tx) => set.add(tx.id));
-    const ownerId = facilityCompany.get(entity.id);
-    if (ownerId) (companyTransactions.get(ownerId) || []).forEach((tx) => set.add(tx.id));
-  }
-  const out = base.filter((tx) => set.has(tx.id));
-  return out.length ? out : base.filter((tx) => [tx.supplierCompanyId, tx.buyerCompanyId, tx.supplierFacilityId, tx.buyerFacilityId].includes(entity.id));
-}
-
-function transactionById(id) {
-  return transactions.find((tx) => tx.id === id) || null;
-}
-
-function sourceLinkList(tx) {
-  return tx.sourceIds.slice(0, 4).map((id) => sources.get(id)).filter(Boolean);
-}
-
-function preloadImage(url) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    if (/^https?:/i.test(url)) image.crossOrigin = "anonymous";
-    image.onload = () => resolve(url);
-    image.onerror = () => reject(new Error(`Failed to load ${url}`));
-    image.src = url;
-  });
-}
-
-function setupFallbackEarth() {
-  const root = document.documentElement;
-  const texture = window.COBALT_EARTH_FALLBACK || "";
-  if (texture) root.style.setProperty("--earth-fallback-image", `url('${texture}')`);
-  else root.style.setProperty("--earth-fallback-image", "url('assets/earth_satellite_1350.jpg')");
-  root.style.setProperty("--earth-image-position", "18% 50%");
-}
-
-function setGlobeState(mode, notice = "") {
-  state.globeMode = mode;
-  state.globeNotice = notice;
-  document.body.classList.toggle("globe-ready", mode === "webgl");
-  document.body.classList.toggle("globe-fallback", mode !== "webgl");
-}
-
-function setupFallbackInteraction() {
-  if (!earthFallback || !earthSphere) return;
-  let dragging = false;
-  let lastX = 0;
-  let offset = 18;
-
-  const paint = () => {
-    earthSphere.style.backgroundPosition = `center, center, ${offset}% 50%, center`;
+  const state = {
+    stage: "all",
+    texture: "github",
+    labels: true,
+    dense: false,
+    autoRotate: true,
+    selectedEntityId: "",
+    selectedTxId: "",
+    view: { lat: 16, lng: 102, altitude: 2.35 },
+    textureNotice: "",
+    globeNotice: "",
+    globeMode: "pending",
+    pointerX: 0,
+    pointerY: 0,
+    suppressViewSync: false
   };
 
-  earthFallback.addEventListener("pointerdown", (event) => {
-    if (state.globeMode === "webgl") return;
-    dragging = true;
-    lastX = event.clientX;
-    earthFallback.classList.add("is-dragging");
-    earthSphere.style.animation = "none";
-    earthFallback.setPointerCapture?.(event.pointerId);
-  });
+  let globe = null;
+  let viewSyncTimer = 0;
 
-  earthFallback.addEventListener("pointermove", (event) => {
-    if (!dragging || state.globeMode === "webgl") return;
-    const deltaX = event.clientX - lastX;
-    lastX = event.clientX;
-    offset += deltaX * 0.08;
-    paint();
-  });
-
-  const stopDrag = (event) => {
-    if (!dragging) return;
-    dragging = false;
-    earthFallback.classList.remove("is-dragging");
-    earthFallback.releasePointerCapture?.(event.pointerId);
-  };
-
-  earthFallback.addEventListener("pointerup", stopDrag);
-  earthFallback.addEventListener("pointercancel", stopDrag);
-  earthFallback.addEventListener("pointerleave", stopDrag);
-}
-
-function openTooltip(html) {
-  if (!html) {
-    tooltip.style.display = "none";
-    tooltip.innerHTML = "";
-    return;
-  }
-  tooltip.innerHTML = html;
-  tooltip.style.display = "block";
-  tooltip.style.left = `${state.pointerX}px`;
-  tooltip.style.top = `${state.pointerY}px`;
-}
-
-function setCard(type, id) {
-  state.card = type && id ? { type, id } : null;
-  renderCard();
-}
-
-function selectEntity(entityId) {
-  state.entityId = entityId || "";
-  state.selectedTxId = "";
-  if (state.entityId) setCard("entity", state.entityId);
-  else setCard(null, null);
-  render();
-}
-
-function selectTransaction(txId) {
-  const tx = transactionById(txId);
-  if (!tx) return;
-  state.selectedTxId = txId;
-  setCard("tx", txId);
-}
-
-function renderResults() {
-  const query = byId("searchInput").value.trim().toLowerCase();
-  const items = (query ? searchCatalog.filter((item) => item.blob.includes(query)) : searchCatalog).slice(0, 8);
-  byId("results").innerHTML = items.map((item) => `
-    <button class="result-item" data-entity="${esc(item.id)}">
-      <div>
-        <div class="result-name">${esc(short(item.name, 34))}</div>
-        <div class="result-meta">${esc(displayCountry(item.country))} · ${fmt.format(item.count)} 条关联关系</div>
-      </div>
-      <span class="tag">${item.type === "company" ? "企业" : "设施"}</span>
-    </button>
-  `).join("") || "<div class='result-meta'>没有匹配结果。</div>";
-}
-
-function renderDetail(focus) {
-  const entity = currentEntity();
-  byId("detailMeta").textContent = entity ? "实体聚焦" : "全局概览";
-
-  if (!entity) {
-    byId("detailBody").innerHTML = `
-      <h2 class="card-title">钴全球供应链图谱</h2>
-      <div class="card-sub">当前预览把企业、设施、商品、证据链接和交易关系整合到了一个可搜索、可钻取的空间图谱视图中。</div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="stat-key">交易关系</div><div class="stat-value">${fmt.format(DATA.meta.transactions)}</div></div>
-        <div class="stat-card"><div class="stat-key">企业数量</div><div class="stat-value">${fmt.format(DATA.meta.companies)}</div></div>
-        <div class="stat-card"><div class="stat-key">设施数量</div><div class="stat-value">${fmt.format(DATA.meta.facilities)}</div></div>
-        <div class="stat-card"><div class="stat-key">矿点数量</div><div class="stat-value">${fmt.format(DATA.meta.mines)}</div></div>
-      </div>
-      <div class="kv-list">
-        <div class="kv-row"><span>量级关系覆盖</span><strong>${fmt.format(DATA.gapReport.quantityRecords)} / ${fmt.format(DATA.meta.transactions)}</strong></div>
-        <div class="kv-row"><span>时间字段覆盖</span><strong>${fmt.format(DATA.gapReport.dateRecords)} / ${fmt.format(DATA.meta.transactions)}</strong></div>
-        <div class="kv-row"><span>产品编码字段</span><strong class="warn">${fmt.format(DATA.gapReport.productCodeRecords)} / ${fmt.format(DATA.meta.transactions)}</strong></div>
-        <div class="kv-row"><span>设施图片字段</span><strong class="warn">${fmt.format(DATA.gapReport.imageryRecords)} / ${fmt.format(DATA.meta.facilities)}</strong></div>
-      </div>
-    `;
-    return;
+  function displayStage(stage) {
+    return STAGE_LABELS[stage] || safeText(stage);
   }
 
-  const focusSet = focus.filter((tx) => [tx.supplierCompanyId, tx.buyerCompanyId, tx.supplierFacilityId, tx.buyerFacilityId].includes(entity.id));
-  const upstream = new Set();
-  const downstream = new Set();
-  const stageSet = new Set();
-  const goods = new Set();
-  let quantity = 0;
-  let dated = 0;
-  let sourced = 0;
-
-  focusSet.forEach((tx) => {
-    if (tx.supplierCompanyId && tx.supplierCompanyId !== entity.id) upstream.add(tx.supplierCompany);
-    if (tx.buyerCompanyId && tx.buyerCompanyId !== entity.id) downstream.add(tx.buyerCompany);
-    stageSet.add(tx.supplierStage);
-    stageSet.add(tx.buyerStage);
-    [...tx.inputCommodities, ...tx.outputCommodities].forEach((value) => goods.add(value));
-    if (tx.hasQuantity) quantity += 1;
-    if (tx.hasDate) dated += 1;
-    if (tx.sourceIds.length) sourced += 1;
-  });
-
-  const metaTags = [displayEntityType(entity.type), displayCountry(entity.country || "")];
-  const facilityType = displayFacilityType(entity.facilityType);
-  if (facilityType) metaTags.push(facilityType);
-  byId("detailBody").innerHTML = `
-    <h2 class="card-title">${esc(entityLabel(entity))}</h2>
-    <div class="card-sub">${esc(metaTags.filter(Boolean).join(" | ") || "暂无补充信息")}</div>
-    <div class="kv-list">
-      <div class="kv-row"><span>关联交易关系</span><strong>${fmt.format(focusSet.length)}</strong></div>
-      <div class="kv-row"><span>上游主体数</span><strong>${fmt.format(upstream.size)}</strong></div>
-      <div class="kv-row"><span>下游主体数</span><strong>${fmt.format(downstream.size)}</strong></div>
-      <div class="kv-row"><span>运营设施数</span><strong>${fmt.format((companyFacilities.get(entity.id) || []).length)}</strong></div>
-      <div class="kv-row"><span>带数量字段</span><strong>${fmt.format(quantity)}</strong></div>
-      <div class="kv-row"><span>带证据来源</span><strong>${fmt.format(sourced)}</strong></div>
-      <div class="kv-row"><span>带时间字段</span><strong>${fmt.format(dated)}</strong></div>
-    </div>
-    <div class="field-label" style="margin-top:14px">涉及环节与商品</div>
-    <div class="tag-list">
-      ${[...stageSet].slice(0, 8).map((value) => `<span class="tag">${esc(displayStage(value))}</span>`).join("")}
-      ${[...goods].slice(0, 8).map((value) => `<span class="tag">${esc(short(value, 20))}</span>`).join("") || "<span class='tag'>暂无商品标注</span>"}
-    </div>
-  `;
-}
-
-function renderCard() {
-  const card = byId("infoCard");
-  const body = byId("cardBody");
-  if (!state.card) {
-    card.classList.add("is-hidden");
-    body.innerHTML = "";
-    return;
+  function displayCountry(country) {
+    const raw = String(country || "").trim();
+    if (!raw) return "未标注";
+    return COUNTRY_LABELS.get(raw.toLowerCase()) || raw;
   }
 
-  if (state.card.type === "entity") {
-    const entity = entities.get(state.card.id);
-    if (!entity) {
-      card.classList.add("is-hidden");
-      return;
-    }
-    const linked = focusedTransactions()
-      .filter((tx) => [tx.supplierCompanyId, tx.buyerCompanyId, tx.supplierFacilityId, tx.buyerFacilityId].includes(entity.id))
-      .slice(0, 6);
-    body.innerHTML = `
-      <h2 class="card-title">${esc(entityLabel(entity))}</h2>
-      <div class="card-sub">${esc(displayCountry(entity.country || ""))} · ${esc(displayEntityType(entity.type))}${entity.facilityType ? ` · ${esc(displayFacilityType(entity.facilityType))}` : ""}</div>
-      <div class="kv-list">
-        ${linked.map((tx) => `<div class="kv-row"><span>${esc(short(tx.supplierCompany || tx.supplierFacility, 16))} → ${esc(short(tx.buyerCompany || tx.buyerFacility, 16))}</span><strong><button class="ghost-btn" data-tx="${esc(tx.id)}">查看</button></strong></div>`).join("") || "<div class='subnote'>当前聚焦范围内没有可展示的关系。</div>"}
-      </div>
-    `;
-  } else {
-    const tx = transactionById(state.card.id);
-    if (!tx) {
-      card.classList.add("is-hidden");
-      return;
-    }
-    const links = sourceLinkList(tx);
-    body.innerHTML = `
-      <h2 class="card-title">${esc(short(tx.supplierCompany || tx.supplierFacility, 32))} → ${esc(short(tx.buyerCompany || tx.buyerFacility, 32))}</h2>
-      <div class="card-sub">${esc(displayStage(tx.supplierStage))} → ${esc(displayStage(tx.buyerStage))}</div>
-      <div class="kv-list">
-        <div class="kv-row"><span>数量/规模</span><strong>${esc(txAmount(tx))}</strong></div>
-        <div class="kv-row"><span>时间</span><strong>${esc(txDate(tx))}</strong></div>
-        <div class="kv-row"><span>输入商品</span><strong>${esc(tx.inputCommodities.join(", ") || "未标注")}</strong></div>
-        <div class="kv-row"><span>输出商品</span><strong>${esc(tx.outputCommodities.join(", ") || "未标注")}</strong></div>
-        <div class="kv-row"><span>坐标来源</span><strong>${esc(`${displayPointOrigin(tx.sourcePointOrigin)} → ${displayPointOrigin(tx.targetPointOrigin)}`)}</strong></div>
-      </div>
-      ${tx.notes.length ? `<div class="field-label" style="margin-top:14px">备注</div><div class="card-sub">${esc(tx.notes.join(" | "))}</div>` : ""}
-      ${links.length ? `<div class="field-label" style="margin-top:14px">证据来源</div><div class="link-list">${links.map((src) => `<a class="card-link" href="${esc(src.url)}" target="_blank" rel="noreferrer">${esc(short(src.host || "来源", 18))}</a>`).join("")}</div>` : ""}
-    `;
+  function displayEntityType(type) {
+    return ENTITY_TYPE_LABELS[type] || safeText(type);
   }
 
-  card.classList.remove("is-hidden");
-}
-
-function renderRegion(focus) {
-  const svg = byId("regionSvg");
-  const caption = byId("regionCaption");
-  const sample = focus.slice(0, state.dense ? 48 : 120).filter((tx) => isNum(tx.sourceLat) && isNum(tx.sourceLon) && isNum(tx.targetLat) && isNum(tx.targetLon));
-  if (!sample.length) {
-    caption.textContent = "当前筛选下没有可用于区域钻取的坐标关系。";
-    svg.innerHTML = "";
-    return;
+  function displayPointOrigin(origin) {
+    return POINT_ORIGIN_LABELS[String(origin || "").toLowerCase()] || safeText(origin);
   }
 
-  const points = sample.flatMap((tx) => [{ lat: Number(tx.sourceLat), lon: Number(tx.sourceLon) }, { lat: Number(tx.targetLat), lon: Number(tx.targetLon) }]);
-  const minLat = Math.min(...points.map((point) => point.lat));
-  const maxLat = Math.max(...points.map((point) => point.lat));
-  const minLon = Math.min(...points.map((point) => point.lon));
-  const maxLon = Math.max(...points.map((point) => point.lon));
-  const latPad = Math.max(2, (maxLat - minLat) * 0.12 || 4);
-  const lonPad = Math.max(3, (maxLon - minLon) * 0.12 || 6);
-  const left = minLon - lonPad;
-  const right = maxLon + lonPad;
-  const top = maxLat + latPad;
-  const bottom = minLat - latPad;
-  const project = (lat, lon) => ({
-    x: clamp(((lon - left) / Math.max(1e-6, right - left)) * 960, 14, 946),
-    y: clamp(((top - lat) / Math.max(1e-6, top - bottom)) * 520, 14, 506)
-  });
-
-  caption.textContent = `经度 ${left.toFixed(1)} 至 ${right.toFixed(1)} / 纬度 ${bottom.toFixed(1)} 至 ${top.toFixed(1)} · 共 ${sample.length} 条聚焦关系`;
-  const grid = Array.from({ length: 5 }, (_, idx) => {
-    const y = 40 + idx * 110;
-    return `<line x1="20" y1="${y}" x2="940" y2="${y}" stroke="rgba(107,199,255,.12)" stroke-width="1" />`;
-  }).join("") + Array.from({ length: 6 }, (_, idx) => {
-    const x = 20 + idx * 184;
-    return `<line x1="${x}" y1="20" x2="${x}" y2="500" stroke="rgba(107,199,255,.12)" stroke-width="1" />`;
-  }).join("");
-
-  const lineHtml = sample.map((tx) => {
-    const a = project(Number(tx.sourceLat), Number(tx.sourceLon));
-    const b = project(Number(tx.targetLat), Number(tx.targetLon));
-    const focused = state.selectedTxId === tx.id;
-    return `<line class="region-line" data-tx="${esc(tx.id)}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${stageColors[tx.supplierStage] || "#7fd0ff"}" stroke-width="${focused ? 3.2 : 1.4}" stroke-opacity="${focused ? 1 : 0.5}" />`;
-  }).join("");
-
-  const nodeHtml = sample.flatMap((tx) => {
-    const a = project(Number(tx.sourceLat), Number(tx.sourceLon));
-    const b = project(Number(tx.targetLat), Number(tx.targetLon));
-    return [
-      `<circle class="region-node" data-entity="${esc(tx.supplierFacilityId || tx.supplierCompanyId || "")}" cx="${a.x}" cy="${a.y}" r="4.2" fill="${stageColors[tx.supplierStage] || "#7fd0ff"}" />`,
-      `<circle class="region-node" data-entity="${esc(tx.buyerFacilityId || tx.buyerCompanyId || "")}" cx="${b.x}" cy="${b.y}" r="4.2" fill="${stageColors[tx.buyerStage] || "#7fd0ff"}" />`
+  function displayFacilityType(value) {
+    let text = String(value || "").trim();
+    if (!text) return "";
+    const replacements = [
+      [/Battery producer/gi, "电池生产商"],
+      [/Electric car producer/gi, "电动汽车生产商"],
+      [/Electric scooter producer/gi, "电动两轮生产商"],
+      [/Cathode producer/gi, "正极材料生产商"],
+      [/Precursor producer/gi, "前驱体生产商"],
+      [/Commodity trader/gi, "贸易商"],
+      [/Refiner/gi, "精炼企业"],
+      [/Smelter/gi, "冶炼企业"],
+      [/Miner/gi, "矿业企业"],
+      [/Battery pack plant/gi, "电池包工厂"],
+      [/Battery cell plant/gi, "电芯工厂"],
+      [/Battery plant/gi, "电池工厂"],
+      [/Electric car plant/gi, "电动汽车工厂"],
+      [/Electric scooter plant/gi, "电动两轮工厂"],
+      [/Cathode plant/gi, "正极材料工厂"],
+      [/Precursor plant/gi, "前驱体工厂"],
+      [/Refinery/gi, "精炼厂"],
+      [/Smelter/gi, "冶炼厂"],
+      [/Processing plant/gi, "加工厂"],
+      [/Mine/gi, "矿点"],
+      [/Headquarter/gi, "总部"],
+      [/Office/gi, "办公室"],
+      [/Plant/gi, "工厂"],
+      [/Factory/gi, "工厂"]
     ];
-  }).join("");
-
-  svg.innerHTML = `<rect x="0" y="0" width="960" height="520" rx="18" fill="rgba(3,9,17,.55)" />${grid}${lineHtml}${nodeHtml}`;
-}
-
-function renderFlow(focus) {
-  const svg = byId("flowSvg");
-  const caption = byId("flowCaption");
-  if (!focus.length) {
-    caption.textContent = "当前筛选下暂无可展示的环节流向。";
-    svg.innerHTML = "";
-    return;
-  }
-
-  const nodes = stageOrder.map((stage, index) => ({
-    stage,
-    x: 90 + index * (1010 / Math.max(1, stageOrder.length - 1)),
-    y: 280,
-    count: focus.filter((tx) => tx.supplierStage === stage || tx.buyerStage === stage).length
-  })).filter((node) => node.count > 0);
-
-  const pairs = new Map();
-  focus.forEach((tx) => {
-    const key = `${tx.supplierStage}>${tx.buyerStage}`;
-    if (!pairs.has(key)) pairs.set(key, { count: 0, sample: tx });
-    pairs.get(key).count += 1;
-  });
-  caption.textContent = `当前聚焦窗口内共有 ${pairs.size} 种环节流向。点击节点可以直接筛选对应环节。`;
-
-  const pathHtml = [...pairs.entries()].map(([key, value]) => {
-    const [from, to] = key.split(">");
-    const source = nodes.find((node) => node.stage === from);
-    const target = nodes.find((node) => node.stage === to);
-    if (!source || !target) return "";
-    const cx = (source.x + target.x) / 2;
-    const cy = source.y - 120;
-    const focused = state.selectedTxId === value.sample.id;
-    return `<path class="flow-line" data-tx="${esc(value.sample.id)}" d="M ${source.x} ${source.y} C ${cx} ${cy}, ${cx} ${cy}, ${target.x} ${target.y}" fill="none" stroke="${stageColors[from] || "#7fd0ff"}" stroke-width="${focused ? 3.2 : Math.min(7, 1.4 + value.count / 14)}" stroke-opacity="${focused ? 1 : Math.min(.82, .22 + value.count / 34)}" />`;
-  }).join("");
-
-  const nodeHtml = nodes.map((node) => `
-    <g>
-      <circle class="flow-node" data-stage="${esc(node.stage)}" cx="${node.x}" cy="${node.y}" r="22" fill="${stageColors[node.stage] || "#7fd0ff"}" fill-opacity=".16" stroke="${stageColors[node.stage] || "#7fd0ff"}" stroke-width="1.5"></circle>
-      <circle class="flow-node" data-stage="${esc(node.stage)}" cx="${node.x}" cy="${node.y}" r="6" fill="${stageColors[node.stage] || "#7fd0ff"}"></circle>
-      <text x="${node.x}" y="${node.y - 34}" text-anchor="middle" fill="#e9f5ff" font-size="12">${esc(displayStage(node.stage))}</text>
-      <text x="${node.x}" y="${node.y + 42}" text-anchor="middle" fill="#90a9c4" font-size="12">${fmt.format(node.count)} 条</text>
-    </g>
-  `).join("");
-
-  svg.innerHTML = `<rect x="0" y="0" width="1200" height="560" rx="18" fill="rgba(3,9,17,.4)" />${pathHtml}${nodeHtml}`;
-}
-
-function buildHierarchyGroups(entity, focus, direction) {
-  const groups = new Map();
-  const selectedId = entity ? entity.id : "";
-  focus.forEach((tx) => {
-    let include = false;
-    let stageKey = "";
-    let counterpartId = "";
-    let counterpartName = "";
-    let edgeStage = "";
-
-    if (direction === "upstream" && [tx.buyerCompanyId, tx.buyerFacilityId].includes(selectedId)) {
-      include = true;
-      stageKey = tx.supplierStage;
-      counterpartId = tx.supplierFacilityId || tx.supplierCompanyId;
-      counterpartName = tx.supplierFacility || tx.supplierCompany;
-      edgeStage = `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`;
-    }
-    if (direction === "downstream" && [tx.supplierCompanyId, tx.supplierFacilityId].includes(selectedId)) {
-      include = true;
-      stageKey = tx.buyerStage;
-      counterpartId = tx.buyerFacilityId || tx.buyerCompanyId;
-      counterpartName = tx.buyerFacility || tx.buyerCompany;
-      edgeStage = `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`;
-    }
-    if (!include) return;
-
-    if (!groups.has(stageKey)) groups.set(stageKey, new Map());
-    const stageGroup = groups.get(stageKey);
-    if (!stageGroup.has(counterpartId || counterpartName)) {
-      stageGroup.set(counterpartId || counterpartName, { id: counterpartId, name: counterpartName, count: 0, txId: tx.id, edgeStage });
-    }
-    stageGroup.get(counterpartId || counterpartName).count += 1;
-  });
-  return groups;
-}
-
-function renderHierarchy(focus) {
-  const entity = currentEntity();
-  const body = byId("hierarchyBody");
-  const meta = byId("hierarchyMeta");
-  if (!entity) {
-    meta.textContent = "选择一个企业或设施后展开";
-    const topPairs = new Map();
-    focus.forEach((tx) => {
-      const key = `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`;
-      topPairs.set(key, (topPairs.get(key) || 0) + 1);
+    replacements.forEach(([pattern, replacement]) => {
+      text = text.replace(pattern, replacement);
     });
-    body.innerHTML = `<div class="subnote">请选择一个企业或设施，查看围绕它展开的上游与下游分层。当前先展示最强的环节组合。</div><div class="kv-list">${[...topPairs.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([key, value]) => `<div class="kv-row"><span>${esc(key)}</span><strong>${fmt.format(value)}</strong></div>`).join("")}</div>`;
-    return;
+    return text;
   }
 
-  meta.textContent = `围绕 ${entityLabel(entity)} 展开`;
-  const upstream = buildHierarchyGroups(entity, focus, "upstream");
-  const downstream = buildHierarchyGroups(entity, focus, "downstream");
-  const renderColumn = (title, groups) => {
-    const html = [...groups.entries()].sort((a, b) => stageOrder.indexOf(a[0]) - stageOrder.indexOf(b[0])).map(([stage, items]) => `
-      <div class="h-group">
-        <div class="h-group-title">${esc(displayStage(stage))}</div>
-        ${[...items.values()].sort((a, b) => b.count - a.count).map((item) => `
-          <button class="h-item" data-entity="${esc(item.id || "")}" data-tx="${esc(item.txId)}">
-            ${esc(short(item.name, 28))}
-            <small>${fmt.format(item.count)} 条关系 · ${esc(item.edgeStage)}</small>
-          </button>
-        `).join("")}
-      </div>
-    `).join("") || `<div class="subnote">当前筛选下暂无${title}关系。</div>`;
-    return `<div class="h-col"><h3>${title}</h3>${html}</div>`;
-  };
-  body.innerHTML = `<div class="hierarchy-columns">${renderColumn("上游", upstream)}${renderColumn("下游", downstream)}</div>`;
-}
-
-async function applyTextureProfile(profile) {
-  const config = TEXTURES[profile] || TEXTURES.balanced;
-  try {
-    await preloadImage(config.url);
-    state.texture = profile;
-    state.textureWarning = config.hint;
-    byId("textureSelect").value = profile;
-    if (globe) globe.globeImageUrl(config.url);
-  } catch (error) {
-    state.texture = profile === "github" ? "sharp" : "balanced";
-    const fallback = TEXTURES[state.texture];
-    state.textureWarning = `${config.label}加载失败，已自动切换到${fallback.label}。`;
-    byId("textureSelect").value = state.texture;
-    if (globe) globe.globeImageUrl(fallback.url);
+  function parseFacilityText(raw) {
+    const text = String(raw || "").trim();
+    if (!text) return { type: "", country: "", place: "" };
+    const parts = text.split("|").map((item) => item.trim()).filter(Boolean);
+    return {
+      type: parts[0] || "",
+      country: parts[1] || "",
+      place: parts.slice(2).join(" | ")
+    };
   }
-}
 
-function globeData(base, focus) {
-  const activeIds = new Set(focus.map((tx) => tx.id));
-  const stride = state.dense && !state.entityId ? Math.max(1, Math.ceil(base.length / 180)) : 1;
-  const pointMap = new Map();
-  const arcs = [];
-  base.forEach((tx, index) => {
-    const active = activeIds.has(tx.id);
-    if (index % stride && !active) return;
-    [
-      {
-        key: `s:${tx.supplierFacilityId || tx.supplierCompanyId}:${tx.supplierStage}`,
-        id: tx.supplierFacilityId || tx.supplierCompanyId,
-        label: tx.supplierFacility || tx.supplierCompany,
-        display: tx.supplierCompany || tx.supplierFacility,
-        stage: tx.supplierStage,
-        country: tx.supplierCountry,
-        lat: Number(tx.sourceLat),
-        lon: Number(tx.sourceLon),
-        origin: tx.sourcePointOrigin
-      },
-      {
-        key: `b:${tx.buyerFacilityId || tx.buyerCompanyId}:${tx.buyerStage}`,
-        id: tx.buyerFacilityId || tx.buyerCompanyId,
-        label: tx.buyerFacility || tx.buyerCompany,
-        display: tx.buyerCompany || tx.buyerFacility,
-        stage: tx.buyerStage,
-        country: tx.buyerCountry,
-        lat: Number(tx.targetLat),
-        lon: Number(tx.targetLon),
-        origin: tx.targetPointOrigin
+  function sourceLinksForTx(tx) {
+    return tx.sourceIds.map((id) => sources.get(id)).filter(Boolean);
+  }
+
+  function formatAmount(tx) {
+    return safeText(
+      tx.amountTonnesRaw ||
+      tx.amountUnitsRaw ||
+      tx.amountUsdRaw ||
+      tx.amountYuanRaw ||
+      tx.amountEnergyRaw,
+      "未标注"
+    );
+  }
+
+  function formatDate(tx) {
+    return safeText(tx.date || tx.expectedDate, "未标注");
+  }
+
+  function formatCoordinate(value) {
+    return isNum(value) ? Number(value).toFixed(2) : "未标注";
+  }
+
+  function dominantStageForEntity(entityId) {
+    const counts = new Map();
+    (txByEntity.get(entityId) || []).forEach((tx) => {
+      if (tx.supplierCompanyId === entityId || tx.supplierFacilityId === entityId) {
+        counts.set(tx.supplierStage, (counts.get(tx.supplierStage) || 0) + 1);
       }
-    ].forEach((point) => {
-      if (!isNum(point.lat) || !isNum(point.lon)) return;
-      if (!pointMap.has(point.key)) pointMap.set(point.key, { ...point, weight: 0, active: false, focused: false });
-      const item = pointMap.get(point.key);
-      item.weight += 1;
-      item.active = item.active || active;
-      item.focused = item.focused || point.id === state.entityId;
+      if (tx.buyerCompanyId === entityId || tx.buyerFacilityId === entityId) {
+        counts.set(tx.buyerStage, (counts.get(tx.buyerStage) || 0) + 1);
+      }
     });
-    const selected = [tx.supplierCompanyId, tx.buyerCompanyId, tx.supplierFacilityId, tx.buyerFacilityId].includes(state.entityId);
-    arcs.push({ ...tx, active, selected, dashOffset: (index * 0.137) % 1, kind: "base" });
-    if (active) arcs.push({ ...tx, active, selected, dashOffset: (index * 0.137) % 1, kind: "pulse" });
-  });
-  const points = [...pointMap.values()];
-  const labels = state.labels
-    ? points
-        .filter((point) => point.active || point.focused)
-        .sort((a, b) => Number(b.focused) - Number(a.focused) || b.weight - a.weight)
-        .slice(0, state.entityId ? 18 : 10)
-        .map((point) => ({ lat: point.lat, lng: point.lon, altitude: point.focused ? 0.05 : 0.03, text: short(point.display, 16) }))
-    : [];
-  return { points, arcs, labels };
-}
-
-function ensureGlobe() {
-  if (globe) return globe;
-  if (typeof window.Globe !== "function") {
-    setGlobeState("fallback", "当前浏览器未成功加载三维地球组件，页面已显示本地地球底图。");
-    return null;
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
   }
 
-  try {
-    globe = new window.Globe(byId("globe"), {
-      rendererConfig: { antialias: true, alpha: true, powerPreference: "high-performance" }
-    })
-      .width(byId("globe").clientWidth || innerWidth)
-      .height(byId("globe").clientHeight || innerHeight)
-      .backgroundColor("rgba(0,0,0,0)")
-      .globeImageUrl(TEXTURES[state.texture].url)
-      .bumpImageUrl("assets/earth_topology.png")
-      .showAtmosphere(true)
-      .atmosphereColor("#8fd2ff")
-      .atmosphereAltitude(0.17)
-      .globeCurvatureResolution(2)
-      .pointAltitude((point) => point.focused ? 0.04 : 0.024)
-      .pointRadius((point) => point.focused ? 0.18 : Math.min(0.11 + point.weight * 0.012, 0.2))
-      .arcAltitudeAutoScale(0.24)
-      .arcStroke((arc) => arc.kind === "pulse" ? 0.38 : (arc.selected ? 0.22 : 0.14))
-      .arcDashLength((arc) => arc.kind === "pulse" ? 0.16 : 1)
-      .arcDashGap((arc) => arc.kind === "pulse" ? 1.15 : 0)
-      .arcDashInitialGap("dashOffset")
-      .arcDashAnimateTime((arc) => arc.kind === "pulse" ? 2600 : 0)
-      .pointsTransitionDuration(0)
-      .arcsTransitionDuration(0)
-      .htmlTransitionDuration(0)
-      .onPointHover((point) => openTooltip(point ? `<div><strong>${esc(point.label)}</strong></div><div>${esc(displayStage(point.stage))} · ${esc(displayCountry(point.country || ""))}</div><div>${fmt.format(point.weight)} 条关联路径</div><div>坐标来源：${esc(displayPointOrigin(point.origin))}</div>` : ""))
-      .onPointClick((point) => {
-        if (!point || !point.id) return;
-        selectEntity(point.id);
-      })
-      .onArcHover((arc) => openTooltip(arc ? `<div><strong>${esc(short(arc.supplierCompany || arc.supplierFacility, 26))} → ${esc(short(arc.buyerCompany || arc.buyerFacility, 26))}</strong></div><div>${esc(displayStage(arc.supplierStage))} → ${esc(displayStage(arc.buyerStage))}</div><div>数量/规模：${esc(txAmount(arc))}</div><div>时间：${esc(txDate(arc))}</div>` : ""))
-      .onArcClick((arc) => {
-        if (!arc || !arc.id) return;
-        selectTransaction(arc.id);
-        render();
-      })
-      .htmlLat("lat")
-      .htmlLng("lon")
-      .htmlAltitude("altitude")
-      .htmlElement((item) => {
-        const node = document.createElement("div");
-        node.className = "glabel";
-        node.textContent = item.text;
-        return node;
+  function entityTitle(entityId, fallback = "") {
+    const entity = entityId ? entities.get(entityId) : null;
+    if (entity?.name) return entity.name;
+    return safeText(fallback, "未命名实体");
+  }
+
+  function entitySubtitle(entity) {
+    if (!entity) return "未锁定实体";
+    const tags = [displayEntityType(entity.type), displayCountry(entity.country || "")];
+    if (entity.facilityType) tags.push(displayFacilityType(entity.facilityType));
+    const stage = dominantStageForEntity(entity.id);
+    if (stage) tags.push(`主导类别：${displayStage(stage)}`);
+    return tags.filter(Boolean).join(" | ");
+  }
+
+  function normalizeLon(lon) {
+    let value = Number(lon);
+    while (value <= -180) value += 360;
+    while (value > 180) value -= 360;
+    return value;
+  }
+
+  function haversineKm(lat1, lon1, lat2, lon2) {
+    if (![lat1, lon1, lat2, lon2].every(isNum)) return Infinity;
+    const toRad = (value) => Number(value) * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(normalizeLon(lon2 - lon1));
+    const a = Math.sin(dLat / 2) ** 2
+      + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function midpoint(tx) {
+    if (!isNum(tx.sourceLat) || !isNum(tx.sourceLon) || !isNum(tx.targetLat) || !isNum(tx.targetLon)) return null;
+    return {
+      lat: (Number(tx.sourceLat) + Number(tx.targetLat)) / 2,
+      lon: normalizeLon((Number(tx.sourceLon) + Number(tx.targetLon)) / 2)
+    };
+  }
+
+  function sideNodeFromTx(tx, side) {
+    const source = side === "source";
+    const entityId = source ? (tx.supplierFacilityId || tx.supplierCompanyId) : (tx.buyerFacilityId || tx.buyerCompanyId);
+    const entity = entityId ? entities.get(entityId) : null;
+    const facilityRaw = source ? tx.supplierFacility : tx.buyerFacility;
+    const companyRaw = source ? tx.supplierCompany : tx.buyerCompany;
+    const parsed = parseFacilityText(facilityRaw);
+    return {
+      key: entityId || `${source ? "supplier" : "buyer"}:${companyRaw || facilityRaw || tx.id}`,
+      entityId,
+      companyId: source ? tx.supplierCompanyId : tx.buyerCompanyId,
+      facilityId: source ? tx.supplierFacilityId : tx.buyerFacilityId,
+      stage: source ? tx.supplierStage : tx.buyerStage,
+      lat: Number(source ? tx.sourceLat : tx.targetLat),
+      lon: Number(source ? tx.sourceLon : tx.targetLon),
+      pointOrigin: source ? tx.sourcePointOrigin : tx.targetPointOrigin,
+      country: entity?.country || (source ? tx.supplierCountry : tx.buyerCountry) || parsed.country || "",
+      place: entity?.place || parsed.place || "",
+      name: entity?.name || companyRaw || facilityRaw || "未命名实体"
+    };
+  }
+
+  function currentEntity() {
+    return state.selectedEntityId ? entities.get(state.selectedEntityId) || null : null;
+  }
+
+  function currentTx() {
+    return state.selectedTxId ? txById.get(state.selectedTxId) || null : null;
+  }
+
+  function stageFilteredTransactions() {
+    if (state.stage === "all") return transactions;
+    return transactions.filter((tx) => tx.supplierStage === state.stage || tx.buyerStage === state.stage);
+  }
+
+  function entityFocusedTransactions(base, entityId) {
+    const scopedIds = new Set([entityId]);
+    const entity = entities.get(entityId);
+    if (entity?.type === "company") {
+      (companyFacilities.get(entity.id) || []).forEach((facilityId) => scopedIds.add(facilityId));
+    }
+    const owner = facilityCompany.get(entityId);
+    if (owner) scopedIds.add(owner);
+    return base.filter((tx) =>
+      scopedIds.has(tx.supplierCompanyId)
+      || scopedIds.has(tx.buyerCompanyId)
+      || scopedIds.has(tx.supplierFacilityId)
+      || scopedIds.has(tx.buyerFacilityId)
+    );
+  }
+
+  function transactionNeighborhood(base, tx) {
+    const scopedIds = new Set([
+      tx.supplierCompanyId,
+      tx.buyerCompanyId,
+      tx.supplierFacilityId,
+      tx.buyerFacilityId
+    ].filter(Boolean));
+    return base.filter((item) =>
+      item.id === tx.id
+      || scopedIds.has(item.supplierCompanyId)
+      || scopedIds.has(item.buyerCompanyId)
+      || scopedIds.has(item.supplierFacilityId)
+      || scopedIds.has(item.buyerFacilityId)
+    );
+  }
+
+  function cameraRadiusKm(altitude, scale = 1) {
+    const radius = 900 + (Number(altitude || 2.2) - 0.8) * 4200;
+    return clamp(radius * scale, 900, 9200);
+  }
+
+  function cameraFocusedTransactions(base, radiusKm = cameraRadiusKm(state.view.altitude)) {
+    return base.filter((tx) => {
+      const views = [
+        { lat: tx.sourceLat, lon: tx.sourceLon },
+        { lat: tx.targetLat, lon: tx.targetLon },
+        midpoint(tx)
+      ].filter(Boolean);
+      return views.some((point) => haversineKm(state.view.lat, state.view.lng, point.lat, point.lon) <= radiusKm);
+    });
+  }
+
+  function ensureValidSelection(base) {
+    if (state.selectedEntityId && !entities.has(state.selectedEntityId)) state.selectedEntityId = "";
+    if (state.selectedTxId && !base.some((tx) => tx.id === state.selectedTxId)) state.selectedTxId = "";
+  }
+
+  function computeContext() {
+    const base = stageFilteredTransactions();
+    ensureValidSelection(base);
+    const entity = currentEntity();
+    const tx = currentTx();
+
+    let focus = base;
+    let mode = "global";
+
+    if (entity) {
+      focus = entityFocusedTransactions(base, entity.id);
+      mode = "entity";
+    } else if (tx) {
+      focus = transactionNeighborhood(base, tx);
+      mode = "transaction";
+    } else {
+      const viewScoped = cameraFocusedTransactions(base);
+      if (viewScoped.length && state.view.altitude < 1.95) {
+        focus = viewScoped;
+        mode = "camera";
+      }
+    }
+
+    if (!focus.length) focus = base;
+
+    return {
+      base,
+      focus,
+      entity,
+      tx,
+      mode,
+      cameraRadiusKm: cameraRadiusKm(state.view.altitude)
+    };
+  }
+
+  function currentModeLabel(context) {
+    if (context.mode === "entity" && context.entity) return `围绕 ${context.entity.name}`;
+    if (context.mode === "transaction" && context.tx) return "关系邻域";
+    if (context.mode === "camera") return "当前视角区域";
+    return "全球总览";
+  }
+
+  function currentModeSub(context) {
+    if (context.mode === "entity" && context.entity) return "当前围绕该实体的供应链关系、空间落点与上下游主体联动展示。";
+    if (context.mode === "transaction" && context.tx) return "已聚焦当前关系及其相关企业/设施。点击其他关系可继续钻取。";
+    if (context.mode === "camera") return `视角中心 ${state.view.lat.toFixed(1)}°, ${state.view.lng.toFixed(1)}°；半径约 ${fmt.format(Math.round(context.cameraRadiusKm))} 公里。`;
+    return "拖动或缩放地球后，页面会自动切换到当前视角对应的区域关系。";
+  }
+
+  function setGlobeState(mode, notice = "") {
+    state.globeMode = mode;
+    state.globeNotice = notice;
+    document.body.classList.toggle("globe-ready", mode === "webgl");
+    document.body.classList.toggle("globe-fallback", mode !== "webgl");
+  }
+
+  function preloadImage(url) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      if (/^https?:/i.test(url)) image.crossOrigin = "anonymous";
+      image.onload = () => resolve(url);
+      image.onerror = () => reject(new Error(`Failed to load ${url}`));
+      image.src = url;
+    });
+  }
+
+  function setupFallbackEarth() {
+    const root = document.documentElement;
+    const texture = window.COBALT_EARTH_FALLBACK || "";
+    if (texture) root.style.setProperty("--earth-fallback-image", `url('${texture}')`);
+    else root.style.setProperty("--earth-fallback-image", "url('assets/earth_satellite_1350.jpg')");
+  }
+
+  function setupFallbackInteraction() {
+    if (!earthFallback || !earthSphere) return;
+    let dragging = false;
+    let lastX = 0;
+    let offset = 18;
+
+    const paint = () => {
+      earthSphere.style.backgroundPosition = `center, center, ${offset}% 50%, center`;
+    };
+
+    earthFallback.addEventListener("pointerdown", (event) => {
+      if (state.globeMode === "webgl") return;
+      dragging = true;
+      lastX = event.clientX;
+      earthFallback.classList.add("is-dragging");
+      earthSphere.style.animation = "none";
+      earthFallback.setPointerCapture?.(event.pointerId);
+    });
+
+    earthFallback.addEventListener("pointermove", (event) => {
+      if (!dragging || state.globeMode === "webgl") return;
+      const deltaX = event.clientX - lastX;
+      lastX = event.clientX;
+      offset += deltaX * 0.08;
+      paint();
+    });
+
+    const stopDrag = (event) => {
+      if (!dragging) return;
+      dragging = false;
+      earthFallback.classList.remove("is-dragging");
+      earthFallback.releasePointerCapture?.(event.pointerId);
+    };
+
+    earthFallback.addEventListener("pointerup", stopDrag);
+    earthFallback.addEventListener("pointercancel", stopDrag);
+    earthFallback.addEventListener("pointerleave", stopDrag);
+
+    paint();
+  }
+
+  function openTooltip(html) {
+    if (!html) {
+      tooltip.style.display = "none";
+      tooltip.innerHTML = "";
+      return;
+    }
+    tooltip.innerHTML = html;
+    tooltip.style.display = "block";
+    tooltip.style.left = `${state.pointerX}px`;
+    tooltip.style.top = `${state.pointerY}px`;
+  }
+
+  function stageColor(stage) {
+    return stageColors[stage] || "#7fd0ff";
+  }
+
+  function buildLegend() {
+    byId("legendList").innerHTML = stageOrder.map((stage) => `
+      <span class="legend-pill">
+        <span class="legend-dot" style="--dot:${stageColor(stage)}"></span>
+        ${esc(displayStage(stage))}
+      </span>
+    `).join("");
+  }
+
+  function sortTransactionsForList(list) {
+    return [...list].sort((a, b) => {
+      if (a.id === state.selectedTxId) return -1;
+      if (b.id === state.selectedTxId) return 1;
+      if (b.sourceCount !== a.sourceCount) return b.sourceCount - a.sourceCount;
+      if (Number(b.hasQuantity) !== Number(a.hasQuantity)) return Number(b.hasQuantity) - Number(a.hasQuantity);
+      if (Number(b.hasDate) !== Number(a.hasDate)) return Number(b.hasDate) - Number(a.hasDate);
+      return String(a.id).localeCompare(String(b.id));
+    });
+  }
+
+  function renderResults() {
+    const query = byId("searchInput").value.trim().toLowerCase();
+    const items = (query ? searchCatalog.filter((item) => item.blob.includes(query)) : searchCatalog).slice(0, 12);
+    byId("results").innerHTML = items.length
+      ? items.map((item) => `
+        <button class="result-item" data-entity="${esc(item.id)}">
+          <div>
+            <div class="result-name">${esc(item.name)}</div>
+            <div class="result-meta">${esc(displayCountry(item.country))} | ${esc(displayEntityType(item.type))} | ${fmt.format(item.count)} 条关联关系</div>
+          </div>
+          <span class="tag">${item.type === "company" ? "企业" : "设施"}</span>
+        </button>
+      `).join("")
+      : "<div class='empty-state'>没有匹配结果，请尝试换一个关键词。</div>";
+  }
+
+  function renderFocusChip(context) {
+    byId("focusTitle").textContent = currentModeLabel(context);
+    byId("focusSub").textContent = currentModeSub(context);
+  }
+
+  function globalSummaryCard(context) {
+    const focusCountries = new Set();
+    const focusStages = new Set();
+    const focusNodes = new Set();
+    context.focus.forEach((tx) => {
+      if (tx.supplierCountry) focusCountries.add(displayCountry(tx.supplierCountry));
+      if (tx.buyerCountry) focusCountries.add(displayCountry(tx.buyerCountry));
+      focusStages.add(displayStage(tx.supplierStage));
+      focusStages.add(displayStage(tx.buyerStage));
+      if (tx.supplierFacilityId || tx.supplierCompanyId) focusNodes.add(tx.supplierFacilityId || tx.supplierCompanyId);
+      if (tx.buyerFacilityId || tx.buyerCompanyId) focusNodes.add(tx.buyerFacilityId || tx.buyerCompanyId);
+    });
+
+    return `
+      <div class="entity-card">
+        <div class="entity-title">${esc(currentModeLabel(context))}</div>
+        <div class="entity-sub">${esc(currentModeSub(context))}</div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-key">当前关系数</div><div class="stat-value">${fmt.format(context.focus.length)}</div></div>
+          <div class="stat-card"><div class="stat-key">空间落点数</div><div class="stat-value">${fmt.format(focusNodes.size)}</div></div>
+          <div class="stat-card"><div class="stat-key">涉及国家</div><div class="stat-value">${fmt.format(focusCountries.size)}</div></div>
+          <div class="stat-card"><div class="stat-key">涉及环节</div><div class="stat-value">${fmt.format(focusStages.size)}</div></div>
+        </div>
+        <div class="kv-list">
+          <div class="kv-row"><span>全局交易关系</span><strong>${fmt.format(DATA.meta.transactions)}</strong></div>
+          <div class="kv-row"><span>企业数量</span><strong>${fmt.format(DATA.meta.companies)}</strong></div>
+          <div class="kv-row"><span>设施数量</span><strong>${fmt.format(DATA.meta.facilities)}</strong></div>
+          <div class="kv-row"><span>矿点数量</span><strong>${fmt.format(DATA.meta.mines)}</strong></div>
+          <div class="kv-row"><span>证据文档数</span><strong>${fmt.format(DATA.meta.sourceDocuments)}</strong></div>
+          <div class="kv-row"><span>当前视角半径</span><strong>${fmt.format(Math.round(context.cameraRadiusKm))} 公里</strong></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function entitySummaryCard(entity, context) {
+    const related = entityFocusedTransactions(context.base, entity.id);
+    const upstream = new Set();
+    const downstream = new Set();
+    const stages = new Set();
+    const goods = new Set();
+    let quantityCount = 0;
+    let dateCount = 0;
+    let evidenceCount = 0;
+
+    related.forEach((tx) => {
+      if (tx.supplierCompanyId === entity.id || tx.supplierFacilityId === entity.id) {
+        if (tx.buyerCompanyId) downstream.add(tx.buyerCompanyId);
+        if (tx.buyerFacilityId) downstream.add(tx.buyerFacilityId);
+      }
+      if (tx.buyerCompanyId === entity.id || tx.buyerFacilityId === entity.id) {
+        if (tx.supplierCompanyId) upstream.add(tx.supplierCompanyId);
+        if (tx.supplierFacilityId) upstream.add(tx.supplierFacilityId);
+      }
+      stages.add(tx.supplierStage);
+      stages.add(tx.buyerStage);
+      [...tx.inputCommodities, ...tx.outputCommodities].forEach((value) => goods.add(value));
+      if (tx.hasQuantity) quantityCount += 1;
+      if (tx.hasDate) dateCount += 1;
+      if (tx.sourceIds.length) evidenceCount += 1;
+    });
+
+    return `
+      <div class="entity-card">
+        <div class="entity-title">${esc(entity.name)}</div>
+        <div class="entity-sub">${esc(entitySubtitle(entity))}</div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-key">关联关系</div><div class="stat-value">${fmt.format(related.length)}</div></div>
+          <div class="stat-card"><div class="stat-key">上游主体</div><div class="stat-value">${fmt.format(upstream.size)}</div></div>
+          <div class="stat-card"><div class="stat-key">下游主体</div><div class="stat-value">${fmt.format(downstream.size)}</div></div>
+          <div class="stat-card"><div class="stat-key">涉及环节</div><div class="stat-value">${fmt.format(stages.size)}</div></div>
+        </div>
+        <div class="kv-list">
+          <div class="kv-row"><span>经纬度</span><span class="value">${formatCoordinate(entity.lat)}, ${formatCoordinate(entity.lon)}</span></div>
+          <div class="kv-row"><span>地点</span><span class="value">${esc(safeText(entity.place, "未标注"))}</span></div>
+          <div class="kv-row"><span>设施类型</span><span class="value">${esc(safeText(displayFacilityType(entity.facilityType), "未标注"))}</span></div>
+          <div class="kv-row"><span>带数量字段</span><strong>${fmt.format(quantityCount)}</strong></div>
+          <div class="kv-row"><span>带时间字段</span><strong>${fmt.format(dateCount)}</strong></div>
+          <div class="kv-row"><span>带证据来源</span><strong>${fmt.format(evidenceCount)}</strong></div>
+        </div>
+        <div class="section-title compact-top">涉及环节与产品</div>
+        <div class="tag-list">
+          ${[...stages].slice(0, 8).map((stage) => `<span class="tag"><span class="node-dot" style="--dot:${stageColor(stage)}"></span>${esc(displayStage(stage))}</span>`).join("")}
+          ${[...goods].slice(0, 8).map((value) => `<span class="tag">${esc(value)}</span>`).join("") || "<span class='tag'>暂无产品标注</span>"}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSummary(context) {
+    byId("infoMeta").textContent = context.entity
+      ? `已锁定：${context.entity.name}`
+      : (context.tx ? "已锁定关系" : "当前未锁定实体");
+    byId("summaryBody").innerHTML = context.entity
+      ? entitySummaryCard(context.entity, context)
+      : globalSummaryCard(context);
+  }
+
+  function renderTxCard(context) {
+    const tx = context.tx;
+    if (!tx) {
+      byId("txBody").innerHTML = "<div class='empty-state'>点击右侧关系、地球连线或底部图谱中的连线后，这里会显示完整关系详情。</div>";
+      return;
+    }
+
+    const sourceLinks = sourceLinksForTx(tx);
+    byId("txBody").innerHTML = `
+      <div class="tx-card">
+        <div class="entity-title">${esc(entityTitle(tx.supplierFacilityId || tx.supplierCompanyId, tx.supplierCompany || tx.supplierFacility))} → ${esc(entityTitle(tx.buyerFacilityId || tx.buyerCompanyId, tx.buyerCompany || tx.buyerFacility))}</div>
+        <div class="entity-sub">${esc(displayStage(tx.supplierStage))} → ${esc(displayStage(tx.buyerStage))}</div>
+        <div class="kv-list">
+          <div class="kv-row"><span>上游主体</span><span class="value">${esc(tx.supplierCompany || tx.supplierFacility || "未标注")}</span></div>
+          <div class="kv-row"><span>下游主体</span><span class="value">${esc(tx.buyerCompany || tx.buyerFacility || "未标注")}</span></div>
+          <div class="kv-row"><span>数量/规模</span><span class="value">${esc(formatAmount(tx))}</span></div>
+          <div class="kv-row"><span>时间</span><span class="value">${esc(formatDate(tx))}</span></div>
+          <div class="kv-row"><span>输入产品</span><span class="value">${esc(tx.inputCommodities.join(" / ") || "未标注")}</span></div>
+          <div class="kv-row"><span>输出产品</span><span class="value">${esc(tx.outputCommodities.join(" / ") || "未标注")}</span></div>
+          <div class="kv-row"><span>坐标来源</span><span class="value">${esc(displayPointOrigin(tx.sourcePointOrigin))} → ${esc(displayPointOrigin(tx.targetPointOrigin))}</span></div>
+          <div class="kv-row"><span>证据条数</span><strong>${fmt.format(tx.sourceIds.length)}</strong></div>
+        </div>
+        ${tx.notes.length ? `<div class="section-title compact-top">证据备注</div><div class="subnote">${esc(tx.notes.join("； "))}</div>` : ""}
+        ${sourceLinks.length ? `<div class="source-links">${sourceLinks.slice(0, 6).map((source) => `<a class="source-link" href="${esc(source.url)}" target="_blank" rel="noreferrer">${esc(source.host || source.url)}</a>`).join("")}</div>` : ""}
+      </div>
+    `;
+  }
+
+  function relationItemHtml(tx) {
+    const active = tx.id === state.selectedTxId;
+    return `
+      <button class="relation-item ${active ? "is-active" : ""}" data-tx="${esc(tx.id)}">
+        <div class="relation-title">${esc(entityTitle(tx.supplierFacilityId || tx.supplierCompanyId, tx.supplierCompany || tx.supplierFacility))} → ${esc(entityTitle(tx.buyerFacilityId || tx.buyerCompanyId, tx.buyerCompany || tx.buyerFacility))}</div>
+        <div class="relation-meta">数量：${esc(formatAmount(tx))} | 时间：${esc(formatDate(tx))} | 证据：${fmt.format(tx.sourceIds.length)} 条</div>
+        <div class="relation-route">
+          <span class="route-piece"><span class="node-dot" style="--dot:${stageColor(tx.supplierStage)}"></span>${esc(displayStage(tx.supplierStage))}</span>
+          <span class="route-arrow">→</span>
+          <span class="route-piece"><span class="node-dot" style="--dot:${stageColor(tx.buyerStage)}"></span>${esc(displayStage(tx.buyerStage))}</span>
+        </div>
+      </button>
+    `;
+  }
+
+  function renderRelationList(context) {
+    const ordered = sortTransactionsForList(context.focus);
+    byId("relationList").innerHTML = ordered.length
+      ? ordered.map(relationItemHtml).join("")
+      : "<div class='empty-state'>当前筛选条件下没有可展示的关系。</div>";
+  }
+
+  function boundsFromPoints(points) {
+    const lats = points.map((point) => point.lat);
+    const lons = points.map((point) => point.lon);
+    let minLat = Math.min(...lats);
+    let maxLat = Math.max(...lats);
+    let minLon = Math.min(...lons);
+    let maxLon = Math.max(...lons);
+    const latPad = Math.max(2, (maxLat - minLat) * 0.18);
+    const lonPad = Math.max(3, (maxLon - minLon) * 0.18);
+    if (maxLat - minLat < 4) {
+      minLat -= 2;
+      maxLat += 2;
+    }
+    if (maxLon - minLon < 6) {
+      minLon -= 3;
+      maxLon += 3;
+    }
+    return {
+      minLat: clamp(minLat - latPad, -85, 85),
+      maxLat: clamp(maxLat + latPad, -85, 85),
+      minLon: clamp(minLon - lonPad, -180, 180),
+      maxLon: clamp(maxLon + lonPad, -180, 180)
+    };
+  }
+
+  function projectRegionPoint(point, bounds, width, height, paddingX = 72, paddingY = 54) {
+    const lonSpan = Math.max(1, bounds.maxLon - bounds.minLon);
+    const latSpan = Math.max(1, bounds.maxLat - bounds.minLat);
+    return {
+      x: paddingX + ((point.lon - bounds.minLon) / lonSpan) * (width - paddingX * 2),
+      y: height - paddingY - ((point.lat - bounds.minLat) / latSpan) * (height - paddingY * 2)
+    };
+  }
+
+  function buildRegionModel(context) {
+    const sourceTxs = context.mode === "entity" || context.mode === "transaction"
+      ? context.focus
+      : (cameraFocusedTransactions(context.base, cameraRadiusKm(state.view.altitude, 0.78)).length
+          ? cameraFocusedTransactions(context.base, cameraRadiusKm(state.view.altitude, 0.78))
+          : context.focus);
+
+    const limit = context.mode === "global" ? 110 : 160;
+    const stride = sourceTxs.length > limit ? Math.ceil(sourceTxs.length / limit) : 1;
+    const pointMap = new Map();
+    const links = [];
+
+    sourceTxs.forEach((tx, index) => {
+      const selected = tx.id === state.selectedTxId;
+      if (index % stride && !selected) return;
+      const source = sideNodeFromTx(tx, "source");
+      const target = sideNodeFromTx(tx, "target");
+      if (isNum(source.lat) && isNum(source.lon)) {
+        if (!pointMap.has(source.key)) pointMap.set(source.key, { ...source, weight: 0, stages: new Map(), selected: false });
+        const entry = pointMap.get(source.key);
+        entry.weight += 1;
+        entry.stages.set(source.stage, (entry.stages.get(source.stage) || 0) + 1);
+        entry.selected = entry.selected || source.entityId === state.selectedEntityId;
+      }
+      if (isNum(target.lat) && isNum(target.lon)) {
+        if (!pointMap.has(target.key)) pointMap.set(target.key, { ...target, weight: 0, stages: new Map(), selected: false });
+        const entry = pointMap.get(target.key);
+        entry.weight += 1;
+        entry.stages.set(target.stage, (entry.stages.get(target.stage) || 0) + 1);
+        entry.selected = entry.selected || target.entityId === state.selectedEntityId;
+      }
+      if (isNum(source.lat) && isNum(source.lon) && isNum(target.lat) && isNum(target.lon)) {
+        links.push({ id: tx.id, source, target, tx, selected });
+      }
+    });
+
+    const points = [...pointMap.values()].map((point) => ({
+      ...point,
+      dominantStage: [...point.stages.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || point.stage
+    }));
+
+    return { points, links };
+  }
+
+  function renderRegion(context) {
+    const model = buildRegionModel(context);
+    const svg = byId("regionSvg");
+    const stats = byId("regionStats");
+    const width = 1100;
+    const height = 560;
+
+    if (!model.points.length) {
+      byId("regionCaption").textContent = "当前视角内没有可投影到局部区域的落点。";
+      stats.innerHTML = "";
+      svg.innerHTML = `<foreignObject x="18" y="20" width="1060" height="200"><div xmlns="http://www.w3.org/1999/xhtml" class="empty-state">请拖动地球到有节点的区域，或点击企业/关系后查看局部区域映射。</div></foreignObject>`;
+      return;
+    }
+
+    const bounds = boundsFromPoints(model.points);
+    const countries = new Set(model.points.map((point) => displayCountry(point.country)).filter(Boolean));
+    const stageSet = new Set(model.points.map((point) => point.dominantStage).filter(Boolean));
+    const projected = new Map(model.points.map((point) => [point.key, projectRegionPoint(point, bounds, width, height)]));
+
+    byId("regionMeta").textContent = context.mode === "camera" ? "当前视角对应的地理窗口" : "当前焦点下的真实坐标投影";
+    byId("regionCaption").textContent = `纬度 ${bounds.minLat.toFixed(1)}° 至 ${bounds.maxLat.toFixed(1)}°，经度 ${bounds.minLon.toFixed(1)}° 至 ${bounds.maxLon.toFixed(1)}°；共 ${fmt.format(model.points.length)} 个落点、${fmt.format(model.links.length)} 条关系。`;
+    stats.innerHTML = [
+      `国家 ${fmt.format(countries.size)}`,
+      `环节 ${fmt.format(stageSet.size)}`,
+      `视角中心 ${state.view.lat.toFixed(1)}°, ${state.view.lng.toFixed(1)}°`
+    ].map((item) => `<span class="chip">${esc(item)}</span>`).join("");
+
+    const gridLines = [];
+    for (let i = 0; i <= 4; i += 1) {
+      const x = 72 + (i / 4) * (width - 144);
+      const y = 54 + (i / 4) * (height - 108);
+      gridLines.push(`<line class="region-grid-line" x1="${x}" y1="54" x2="${x}" y2="${height - 54}" />`);
+      gridLines.push(`<line class="region-grid-line" x1="72" y1="${y}" x2="${width - 72}" y2="${y}" />`);
+    }
+
+    const linkHtml = model.links.map((link) => {
+      const source = projected.get(link.source.key);
+      const target = projected.get(link.target.key);
+      if (!source || !target) return "";
+      const color = stageColor(link.source.stage);
+      const widthValue = link.selected ? 3.8 : clamp(1.2 + (link.tx.sourceCount || 0) * 0.2, 1.2, 3);
+      return `
+        <path
+          class="chain-edge"
+          data-tx="${esc(link.id)}"
+          d="M ${source.x} ${source.y} L ${target.x} ${target.y}"
+          stroke="${color}"
+          stroke-width="${widthValue}"
+          stroke-opacity="${link.selected ? 0.96 : 0.48}"
+        >
+          <title>${esc(entityTitle(link.source.entityId, link.source.name))} → ${esc(entityTitle(link.target.entityId, link.target.name))}&#10;${esc(displayStage(link.source.stage))} → ${esc(displayStage(link.target.stage))}</title>
+        </path>
+      `;
+    }).join("");
+
+    const labelPoints = [...model.points]
+      .sort((a, b) => Number(b.selected) - Number(a.selected) || b.weight - a.weight)
+      .slice(0, context.mode === "entity" ? 14 : 10);
+
+    const pointHtml = model.points.map((point) => {
+      const p = projected.get(point.key);
+      if (!p) return "";
+      const color = stageColor(point.dominantStage);
+      const radius = point.selected ? 8.5 : clamp(4 + point.weight * 0.22, 4.5, 7.5);
+      const label = labelPoints.includes(point)
+        ? `<text x="${p.x + 10}" y="${p.y - 10}" fill="#eaf5ff" font-size="12">${esc(shortText(point.name, 26))}</text>`
+        : "";
+      return `
+        <g class="region-node" data-entity="${esc(point.entityId || "")}">
+          <circle cx="${p.x}" cy="${p.y}" r="${radius + 4}" fill="${withAlpha(color, "22")}" />
+          <circle cx="${p.x}" cy="${p.y}" r="${radius}" fill="${color}" stroke="${point.selected ? "#ffffff" : "rgba(255,255,255,.32)"}" stroke-width="${point.selected ? 2 : 1.1}" />
+          <title>${esc(point.name)}&#10;${esc(displayStage(point.dominantStage))} | ${esc(displayCountry(point.country))}&#10;${esc(safeText(point.place, "未标注地点"))}</title>
+          ${label}
+        </g>
+      `;
+    }).join("");
+
+    svg.innerHTML = `
+      <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(3,9,17,.34)"></rect>
+      ${gridLines.join("")}
+      ${linkHtml}
+      ${pointHtml}
+    `;
+  }
+
+  function buildChainModel(context) {
+    const seedTxs = context.mode === "entity" || context.mode === "transaction"
+      ? context.focus
+      : (cameraFocusedTransactions(context.base, cameraRadiusKm(state.view.altitude, 0.9)).length
+          ? cameraFocusedTransactions(context.base, cameraRadiusKm(state.view.altitude, 0.9))
+          : context.focus);
+
+    if (!seedTxs.length) return { nodes: [], edges: [], stages: [] };
+
+    const nodeMap = new Map();
+    const edgeMap = new Map();
+    const limit = context.entity ? 180 : 120;
+    const stride = seedTxs.length > limit ? Math.ceil(seedTxs.length / limit) : 1;
+
+    seedTxs.forEach((tx, index) => {
+      const selected = tx.id === state.selectedTxId;
+      if (index % stride && !selected) return;
+
+      const source = sideNodeFromTx(tx, "source");
+      const target = sideNodeFromTx(tx, "target");
+      const sourceKey = `${source.key}::${source.stage}`;
+      const targetKey = `${target.key}::${target.stage}`;
+
+      if (!nodeMap.has(sourceKey)) nodeMap.set(sourceKey, { ...source, graphKey: sourceKey, count: 0, selected: false });
+      if (!nodeMap.has(targetKey)) nodeMap.set(targetKey, { ...target, graphKey: targetKey, count: 0, selected: false });
+
+      nodeMap.get(sourceKey).count += 1;
+      nodeMap.get(targetKey).count += 1;
+      nodeMap.get(sourceKey).selected = nodeMap.get(sourceKey).selected || source.entityId === state.selectedEntityId;
+      nodeMap.get(targetKey).selected = nodeMap.get(targetKey).selected || target.entityId === state.selectedEntityId;
+
+      const edgeKey = `${sourceKey}>>${targetKey}`;
+      if (!edgeMap.has(edgeKey)) edgeMap.set(edgeKey, { sourceKey, targetKey, count: 0, txId: tx.id, selected: false });
+      const edge = edgeMap.get(edgeKey);
+      edge.count += 1;
+      edge.selected = edge.selected || selected;
+      if (selected) edge.txId = tx.id;
+    });
+
+    const stageBuckets = new Map();
+    [...nodeMap.values()].forEach((node) => {
+      if (!stageBuckets.has(node.stage)) stageBuckets.set(node.stage, []);
+      stageBuckets.get(node.stage).push(node);
+    });
+
+    const stageLimit = context.entity ? 6 : 5;
+    const keepKeys = new Set();
+    const stages = stageOrder.filter((stage) => stageBuckets.has(stage));
+    stages.forEach((stage) => {
+      const bucket = stageBuckets.get(stage)
+        .sort((a, b) => Number(b.selected) - Number(a.selected) || b.count - a.count || a.name.localeCompare(b.name, "en"))
+        .slice(0, stageLimit);
+      bucket.forEach((node) => keepKeys.add(node.graphKey));
+    });
+
+    const nodes = [...nodeMap.values()].filter((node) => keepKeys.has(node.graphKey));
+    const edges = [...edgeMap.values()].filter((edge) => keepKeys.has(edge.sourceKey) && keepKeys.has(edge.targetKey));
+    return { nodes, edges, stages };
+  }
+
+  function renderChain(context) {
+    const model = buildChainModel(context);
+    const svg = byId("chainSvg");
+    const width = 1320;
+    const height = 560;
+
+    if (!model.nodes.length) {
+      byId("chainCaption").textContent = "当前焦点下没有可展开的知识图谱结构。";
+      svg.innerHTML = `<foreignObject x="18" y="20" width="1280" height="220"><div xmlns="http://www.w3.org/1999/xhtml" class="empty-state">请先锁定一个企业、矿点或关系，再查看按供应链环节展开的知识图谱。</div></foreignObject>`;
+      return;
+    }
+
+    const stageNodes = new Map();
+    model.stages.forEach((stage) => stageNodes.set(stage, model.nodes.filter((node) => node.stage === stage)));
+    const xPadding = 92;
+    const top = 92;
+    const bottom = 78;
+    const stageStep = model.stages.length > 1 ? (width - xPadding * 2) / (model.stages.length - 1) : 0;
+    const positioned = new Map();
+
+    model.stages.forEach((stage, stageIndex) => {
+      const nodes = stageNodes.get(stage) || [];
+      const usableHeight = height - top - bottom;
+      const step = nodes.length > 1 ? usableHeight / (nodes.length - 1) : 0;
+      nodes.forEach((node, index) => {
+        positioned.set(node.graphKey, {
+          ...node,
+          x: xPadding + stageStep * stageIndex,
+          y: nodes.length > 1 ? top + step * index : top + usableHeight / 2
+        });
+      });
+    });
+
+    const stageGuides = model.stages.map((stage, index) => {
+      const x = xPadding + stageStep * index;
+      return `
+        <line x1="${x}" y1="56" x2="${x}" y2="${height - 46}" stroke="rgba(111,200,255,.12)" stroke-width="1" />
+        <text x="${x}" y="34" text-anchor="middle" fill="#eaf5ff" font-size="13">${esc(displayStage(stage))}</text>
+      `;
+    }).join("");
+
+    const edgeHtml = model.edges.map((edge) => {
+      const source = positioned.get(edge.sourceKey);
+      const target = positioned.get(edge.targetKey);
+      if (!source || !target) return "";
+      const curveX = (source.x + target.x) / 2;
+      const color = stageColor(source.stage);
+      const widthValue = edge.selected ? 4 : clamp(1.3 + edge.count * 0.35, 1.4, 4);
+      return `
+        <path
+          class="chain-edge"
+          data-tx="${esc(edge.txId)}"
+          d="M ${source.x} ${source.y} C ${curveX} ${source.y}, ${curveX} ${target.y}, ${target.x} ${target.y}"
+          stroke="${color}"
+          stroke-width="${widthValue}"
+          stroke-opacity="${edge.selected ? 1 : 0.58}"
+        >
+          <title>${esc(source.name)} → ${esc(target.name)}&#10;${esc(displayStage(source.stage))} → ${esc(displayStage(target.stage))}&#10;关系数：${fmt.format(edge.count)}</title>
+        </path>
+      `;
+    }).join("");
+
+    const nodeHtml = [...positioned.values()].map((node) => {
+      const color = stageColor(node.stage);
+      return `
+        <g class="chain-node" data-entity="${esc(node.entityId || "")}">
+          <circle cx="${node.x}" cy="${node.y}" r="${node.selected ? 17 : 15}" fill="${withAlpha(color, "22")}" stroke="${color}" stroke-width="1.2"></circle>
+          <circle cx="${node.x}" cy="${node.y}" r="${node.selected ? 7.5 : 6.2}" fill="${color}" stroke="${node.selected ? "#fff" : "none"}" stroke-width="1.6"></circle>
+          <text x="${node.x}" y="${node.y - 24}" text-anchor="middle" fill="#dcebff" font-size="12">${esc(shortText(node.name, 18))}</text>
+          <text x="${node.x}" y="${node.y + 31}" text-anchor="middle" fill="#8fa8c2" font-size="11">${fmt.format(node.count)} 条</text>
+          <title>${esc(node.name)}&#10;${esc(displayStage(node.stage))} | ${esc(displayCountry(node.country))}&#10;${esc(safeText(node.place, "未标注地点"))}</title>
+        </g>
+      `;
+    }).join("");
+
+    byId("chainMeta").textContent = context.entity
+      ? `围绕 ${context.entity.name} 展开的多类别节点关系`
+      : (context.mode === "camera" ? "当前视角区域内的多类别节点关系" : "按供应链环节分层展开");
+    byId("chainCaption").textContent = `当前图谱共展示 ${fmt.format(model.nodes.length)} 个节点、${fmt.format(model.edges.length)} 条关系。节点颜色代表所属环节类别，点击节点或连线可继续钻取。`;
+    svg.innerHTML = `
+      <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(3,9,17,.32)"></rect>
+      ${stageGuides}
+      ${edgeHtml}
+      ${nodeHtml}
+    `;
+  }
+
+  function buildHierarchyGroups(entity, list, direction) {
+    const groups = new Map();
+    list.forEach((tx) => {
+      let include = false;
+      let stage = "";
+      let counterpartId = "";
+      let counterpartName = "";
+      let counterpartCountry = "";
+      let route = "";
+
+      if (direction === "upstream" && (tx.buyerCompanyId === entity.id || tx.buyerFacilityId === entity.id)) {
+        include = true;
+        stage = tx.supplierStage;
+        counterpartId = tx.supplierFacilityId || tx.supplierCompanyId || "";
+        counterpartName = entityTitle(counterpartId, tx.supplierCompany || tx.supplierFacility);
+        counterpartCountry = tx.supplierCountry;
+        route = `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`;
+      }
+
+      if (direction === "downstream" && (tx.supplierCompanyId === entity.id || tx.supplierFacilityId === entity.id)) {
+        include = true;
+        stage = tx.buyerStage;
+        counterpartId = tx.buyerFacilityId || tx.buyerCompanyId || "";
+        counterpartName = entityTitle(counterpartId, tx.buyerCompany || tx.buyerFacility);
+        counterpartCountry = tx.buyerCountry;
+        route = `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`;
+      }
+
+      if (!include) return;
+      if (!groups.has(stage)) groups.set(stage, new Map());
+      const bucket = groups.get(stage);
+      const key = counterpartId || counterpartName;
+      if (!bucket.has(key)) {
+        bucket.set(key, {
+          id: counterpartId,
+          name: counterpartName,
+          country: counterpartCountry,
+          route,
+          count: 0,
+          txId: tx.id
+        });
+      }
+      bucket.get(key).count += 1;
+    });
+    return groups;
+  }
+
+  function hierarchyColumnHtml(title, groups) {
+    const html = [...groups.entries()]
+      .sort((a, b) => stageOrder.indexOf(a[0]) - stageOrder.indexOf(b[0]))
+      .map(([stage, items]) => `
+        <div class="hierarchy-group">
+          <div class="hierarchy-group-title">${esc(displayStage(stage))}</div>
+          ${[...items.values()].sort((a, b) => b.count - a.count).map((item) => `
+            <button class="hierarchy-item" data-entity="${esc(item.id || "")}" data-tx="${esc(item.txId)}">
+              <strong>${esc(item.name)}</strong>
+              <small>${esc(displayCountry(item.country || ""))} | ${fmt.format(item.count)} 条关系 | ${esc(item.route)}</small>
+            </button>
+          `).join("")}
+        </div>
+      `).join("");
+
+    return `
+      <div class="hierarchy-column">
+        <h3>${title}</h3>
+        ${html || `<div class="empty-state">当前焦点下暂无${title}关系。</div>`}
+      </div>
+    `;
+  }
+
+  function renderHierarchy(context) {
+    const body = byId("hierarchyBody");
+    if (!context.entity) {
+      const routes = new Map();
+      context.focus.forEach((tx) => {
+        const key = `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`;
+        routes.set(key, (routes.get(key) || 0) + 1);
+      });
+      byId("hierarchyMeta").textContent = context.mode === "camera" ? "当前视角区域内的主路径" : "请先锁定一个实体";
+      body.innerHTML = `
+        <div class="empty-state">点击左侧搜索结果、地球节点或关系连线后，这里会按上游和下游分层展开详细主体。</div>
+        <div class="kv-list">
+          ${[...routes.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([key, value]) => `
+            <div class="kv-row"><span>${esc(key)}</span><strong>${fmt.format(value)}</strong></div>
+          `).join("")}
+        </div>
+      `;
+      return;
+    }
+
+    const upstream = buildHierarchyGroups(context.entity, context.focus, "upstream");
+    const downstream = buildHierarchyGroups(context.entity, context.focus, "downstream");
+    byId("hierarchyMeta").textContent = `围绕 ${context.entity.name} 展开`;
+    body.innerHTML = `
+      <div class="hierarchy-columns">
+        ${hierarchyColumnHtml("上游", upstream)}
+        ${hierarchyColumnHtml("下游", downstream)}
+      </div>
+    `;
+  }
+
+  function buildGlobeData(context) {
+    const activeTxIds = new Set(context.focus.map((tx) => tx.id));
+    const pointMap = new Map();
+    const arcs = [];
+    const sampleLimit = context.mode === "global"
+      ? (state.dense ? 280 : 160)
+      : (state.dense ? 420 : 260);
+    const stride = context.base.length > sampleLimit ? Math.ceil(context.base.length / sampleLimit) : 1;
+
+    context.base.forEach((tx, index) => {
+      const active = activeTxIds.has(tx.id);
+      const selected = tx.id === state.selectedTxId;
+      if (index % stride && !active && !selected) return;
+
+      const source = sideNodeFromTx(tx, "source");
+      const target = sideNodeFromTx(tx, "target");
+      [source, target].forEach((point) => {
+        if (!isNum(point.lat) || !isNum(point.lon)) return;
+        if (!pointMap.has(point.key)) {
+          pointMap.set(point.key, {
+            ...point,
+            weight: 0,
+            stageCounts: new Map(),
+            active: false,
+            selected: false
+          });
+        }
+        const entry = pointMap.get(point.key);
+        entry.weight += 1;
+        entry.stageCounts.set(point.stage, (entry.stageCounts.get(point.stage) || 0) + 1);
+        entry.active = entry.active || active;
+        entry.selected = entry.selected || point.entityId === state.selectedEntityId;
       });
 
-    const controls = globe.controls ? globe.controls() : null;
-    if (controls) {
-      controls.enablePan = false;
-      controls.minDistance = 170;
-      controls.maxDistance = 760;
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.08;
-      controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.45;
-    }
-
-    byId("globe").addEventListener("mousemove", (event) => {
-      state.pointerX = event.clientX + 14;
-      state.pointerY = event.clientY + 14;
-      if (tooltip.style.display === "block") {
-        tooltip.style.left = `${state.pointerX}px`;
-        tooltip.style.top = `${state.pointerY}px`;
+      if (isNum(source.lat) && isNum(source.lon) && isNum(target.lat) && isNum(target.lon)) {
+        arcs.push({
+          ...tx,
+          active,
+          selected,
+          dashOffset: (index * 0.141) % 1,
+          kind: "base",
+          sourceColor: stageColor(tx.supplierStage),
+          targetColor: stageColor(tx.buyerStage)
+        });
+        if (active || selected) {
+          arcs.push({
+            ...tx,
+            active,
+            selected,
+            dashOffset: (index * 0.141) % 1,
+            kind: "focus",
+            sourceColor: stageColor(tx.supplierStage),
+            targetColor: stageColor(tx.buyerStage)
+          });
+        }
       }
     });
-    byId("globe").addEventListener("mouseleave", () => openTooltip(""));
-    new ResizeObserver(() => {
-      if (!globe) return;
-      globe.width(byId("globe").clientWidth || innerWidth).height(byId("globe").clientHeight || innerHeight);
-    }).observe(byId("globe"));
 
-    setGlobeState("webgl", "");
-    return globe;
-  } catch (error) {
-    console.error(error);
-    setGlobeState("fallback", "三维地球初始化失败，页面已切换为本地地球底图。");
-    return null;
+    const points = [...pointMap.values()].map((point) => ({
+      ...point,
+      dominantStage: [...point.stageCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || point.stage
+    }));
+
+    const labelLimit = state.view.altitude < 1.2 ? 26 : (context.entity ? 18 : 12);
+    const labels = state.labels
+      ? points
+          .filter((point) => point.selected || point.active || state.view.altitude < 1.15)
+          .sort((a, b) => Number(b.selected) - Number(a.selected) || Number(b.active) - Number(a.active) || b.weight - a.weight)
+          .slice(0, labelLimit)
+          .map((point) => ({
+            lat: point.lat,
+            lng: point.lon,
+            altitude: point.selected ? 0.065 : 0.038,
+            text: shortText(point.name, 20),
+            color: stageColor(point.dominantStage)
+          }))
+      : [];
+
+    return { points, arcs, labels };
   }
-}
 
-function renderGlobe(base, focus) {
-  const g = ensureGlobe();
-  if (!g) return;
-  try {
-    const data = globeData(base, focus);
-    g.pointsData(data.points)
-      .pointLat("lat")
-      .pointLng("lon")
-      .pointColor((point) => {
-        const color = stageColors[point.stage] || "#7fd0ff";
-        return point.focused ? color : (point.active ? `${color}cc` : `${color}44`);
-      })
-      .arcsData(data.arcs)
-      .arcStartLat("sourceLat")
-      .arcStartLng("sourceLon")
-      .arcEndLat("targetLat")
-      .arcEndLng("targetLon")
-      .arcColor((arc) => {
-        const color = stageColors[arc.supplierStage] || "#7fd0ff";
-        if (arc.kind === "pulse") return arc.selected ? "rgba(255,255,255,.96)" : "rgba(170,225,255,.86)";
-        return arc.selected ? `${color}dd` : (arc.active ? `${color}88` : `${color}22`);
-      })
-      .htmlElementsData(data.labels);
+  function focusPointsForCamera(context) {
+    const list = [];
+    const seen = new Set();
+    context.focus.forEach((tx) => {
+      [sideNodeFromTx(tx, "source"), sideNodeFromTx(tx, "target")].forEach((point) => {
+        if (!point.entityId || !isNum(point.lat) || !isNum(point.lon)) return;
+        const key = `${point.entityId}:${point.stage}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        list.push(point);
+      });
+    });
+    return list;
+  }
 
-    setGlobeState("webgl", "");
+  function averageLng(points) {
+    if (!points.length) return state.view.lng;
+    const sumX = points.reduce((sum, point) => sum + Math.cos(Number(point.lon) * Math.PI / 180), 0);
+    const sumY = points.reduce((sum, point) => sum + Math.sin(Number(point.lon) * Math.PI / 180), 0);
+    return Math.atan2(sumY, sumX) * 180 / Math.PI;
+  }
 
-    const points = data.points.filter((point) => point.active || point.focused);
-    const use = points.length ? points : data.points;
-    const controls = g.controls ? g.controls() : null;
-    if (controls) {
-      controls.autoRotate = state.rotate && !state.entityId;
-      controls.autoRotateSpeed = 0.45;
+  function computeFocusView(context) {
+    if (!context.entity && !context.tx) return state.view;
+    const points = focusPointsForCamera(context);
+    if (!points.length) return null;
+    const lat = points.reduce((sum, point) => sum + Number(point.lat), 0) / points.length;
+    const lng = averageLng(points);
+    const latSpan = Math.max(...points.map((point) => Number(point.lat))) - Math.min(...points.map((point) => Number(point.lat)));
+    const lonSpan = Math.max(...points.map((point) => Number(point.lon))) - Math.min(...points.map((point) => Number(point.lon)));
+    const span = Math.max(latSpan, lonSpan * 0.65);
+    const altitude = context.entity || context.tx
+      ? clamp(0.82 + span / 42, 0.82, 1.85)
+      : clamp(1.0 + span / 52, 1.0, 2.35);
+    return { lat, lng: normalizeLon(lng), altitude };
+  }
+
+  function setPointOfView(view, duration = 900) {
+    if (!globe || !view) return;
+    state.suppressViewSync = true;
+    state.view = { lat: view.lat, lng: normalizeLon(view.lng), altitude: view.altitude };
+    globe.pointOfView(state.view, duration);
+    window.clearTimeout(viewSyncTimer);
+    viewSyncTimer = window.setTimeout(() => {
+      state.suppressViewSync = false;
+    }, duration + 80);
+  }
+
+  function syncViewFromGlobe() {
+    if (!globe || state.suppressViewSync) return;
+    const view = globe.pointOfView();
+    if (!view) return;
+    state.view = {
+      lat: Number(view.lat || 0),
+      lng: normalizeLon(Number(view.lng || 0)),
+      altitude: Number(view.altitude || 2.2)
+    };
+  }
+
+  function ensureGlobe() {
+    if (globe) return globe;
+    if (typeof window.Globe !== "function") {
+      setGlobeState("fallback", "三维地球组件没有成功加载，页面已切换到本地地球底图。");
+      return null;
     }
-    if (!use.length) {
-      g.pointOfView({ lat: 18, lng: 18, altitude: 2.2 }, 900);
+
+    try {
+      globe = new window.Globe(globeHost, {
+        rendererConfig: { antialias: true, alpha: true, powerPreference: "high-performance" }
+      })
+        .width(globeHost.clientWidth || window.innerWidth)
+        .height(globeHost.clientHeight || window.innerHeight)
+        .backgroundColor("rgba(0,0,0,0)")
+        .globeImageUrl(TEXTURES[state.texture].url)
+        .bumpImageUrl("assets/earth_topology.png")
+        .showAtmosphere(true)
+        .atmosphereColor("#9fdcff")
+        .atmosphereAltitude(0.17)
+        .globeCurvatureResolution(3)
+        .pointAltitude((point) => point.selected ? 0.05 : (point.active ? 0.036 : 0.022))
+        .pointRadius((point) => point.selected ? 0.22 : clamp(0.07 + point.weight * 0.009, 0.08, 0.16))
+        .arcAltitudeAutoScale(0.22)
+        .arcStroke((arc) => arc.kind === "focus" ? (arc.selected ? 0.38 : 0.26) : 0.12)
+        .arcDashLength((arc) => arc.kind === "focus" ? 0.24 : 1)
+        .arcDashGap((arc) => arc.kind === "focus" ? 1 : 0)
+        .arcDashInitialGap("dashOffset")
+        .arcDashAnimateTime((arc) => arc.kind === "focus" ? 2300 : 0)
+        .pointsTransitionDuration(0)
+        .arcsTransitionDuration(0)
+        .htmlTransitionDuration(0)
+        .htmlLat("lat")
+        .htmlLng("lng")
+        .htmlAltitude("altitude")
+        .htmlElement((item) => {
+          const node = document.createElement("div");
+          node.className = "glabel";
+          node.innerHTML = `<span class="glabel-dot" style="--dot:${item.color}"></span><span>${esc(item.text)}</span>`;
+          return node;
+        })
+        .onPointHover((point) => openTooltip(point ? `
+          <div><strong>${esc(point.name)}</strong></div>
+          <div>${esc(displayStage(point.dominantStage || point.stage))} | ${esc(displayCountry(point.country || ""))}</div>
+          <div>${fmt.format(point.weight)} 条关联关系</div>
+          <div>坐标来源：${esc(displayPointOrigin(point.pointOrigin))}</div>
+          <div>${esc(safeText(point.place, "未标注地点"))}</div>
+        ` : ""))
+        .onPointClick((point) => {
+          if (!point || !point.entityId) return;
+          selectEntity(point.entityId);
+        })
+        .onArcHover((arc) => openTooltip(arc ? `
+          <div><strong>${esc(entityTitle(arc.supplierFacilityId || arc.supplierCompanyId, arc.supplierCompany || arc.supplierFacility))} → ${esc(entityTitle(arc.buyerFacilityId || arc.buyerCompanyId, arc.buyerCompany || arc.buyerFacility))}</strong></div>
+          <div>${esc(displayStage(arc.supplierStage))} → ${esc(displayStage(arc.buyerStage))}</div>
+          <div>数量/规模：${esc(formatAmount(arc))}</div>
+          <div>时间：${esc(formatDate(arc))}</div>
+        ` : ""))
+        .onArcClick((arc) => {
+          if (!arc || !arc.id) return;
+          selectTransaction(arc.id);
+        });
+
+      const controls = globe.controls ? globe.controls() : null;
+      if (controls) {
+        controls.enablePan = false;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.36;
+        controls.minDistance = 140;
+        controls.maxDistance = 920;
+        controls.zoomSpeed = 0.85;
+        controls.rotateSpeed = 0.78;
+        controls.addEventListener?.("change", () => {
+          syncViewFromGlobe();
+          if (state.suppressViewSync) return;
+          window.clearTimeout(viewSyncTimer);
+          viewSyncTimer = window.setTimeout(() => {
+            renderAll({ recenter: false, updateGlobe: false });
+          }, 120);
+        });
+      }
+
+      globeHost.addEventListener("mousemove", (event) => {
+        state.pointerX = event.clientX + 14;
+        state.pointerY = event.clientY + 14;
+        if (tooltip.style.display === "block") {
+          tooltip.style.left = `${state.pointerX}px`;
+          tooltip.style.top = `${state.pointerY}px`;
+        }
+      });
+      globeHost.addEventListener("mouseleave", () => openTooltip(""));
+
+      new ResizeObserver(() => {
+        if (!globe) return;
+        globe.width(globeHost.clientWidth || window.innerWidth).height(globeHost.clientHeight || window.innerHeight);
+      }).observe(globeHost);
+
+      globe.pointOfView(state.view, 0);
+      setGlobeState("webgl", "");
+      return globe;
+    } catch (error) {
+      console.error(error);
+      setGlobeState("fallback", "三维地球初始化失败，页面已切换到本地地球底图。");
+      return null;
+    }
+  }
+
+  function renderGlobe(context, { recenter = true } = {}) {
+    const g = ensureGlobe();
+    if (!g) return;
+
+    try {
+      const data = buildGlobeData(context);
+      g.pointsData(data.points)
+        .pointLat("lat")
+        .pointLng("lon")
+        .pointColor((point) => {
+          const color = stageColor(point.dominantStage);
+          if (point.selected) return color;
+          return point.active ? withAlpha(color, "cc") : withAlpha(color, "55");
+        })
+        .arcsData(data.arcs)
+        .arcStartLat("sourceLat")
+        .arcStartLng("sourceLon")
+        .arcEndLat("targetLat")
+        .arcEndLng("targetLon")
+        .arcColor((arc) => {
+          if (arc.kind === "focus") {
+            return arc.selected
+              ? ["rgba(255,255,255,.98)", "rgba(255,255,255,.28)"]
+              : [withAlpha(arc.sourceColor, "f0"), withAlpha(arc.targetColor, "b8")];
+          }
+          return [withAlpha(arc.sourceColor, arc.active ? "80" : "28"), withAlpha(arc.targetColor, arc.active ? "80" : "28")];
+        })
+        .htmlElementsData(data.labels);
+
+      const controls = g.controls ? g.controls() : null;
+      if (controls) controls.autoRotate = state.autoRotate && !state.selectedEntityId && !state.selectedTxId;
+
+      if (recenter) {
+        const targetView = computeFocusView(context) || state.view;
+        if (targetView) setPointOfView(targetView, 900);
+      }
+
+      setGlobeState("webgl", "");
+    } catch (error) {
+      console.error(error);
+      setGlobeState("fallback", "三维地球渲染失败，页面已保留本地地球底图与图谱面板。");
+    }
+  }
+
+  async function applyTextureProfile(profile) {
+    const config = TEXTURES[profile] || TEXTURES.github;
+    try {
+      await preloadImage(config.url);
+      state.texture = profile;
+      state.textureNotice = config.hint;
+      byId("textureSelect").value = profile;
+      if (globe) globe.globeImageUrl(config.url);
+    } catch (error) {
+      const fallback = profile === "github" ? TEXTURES.sharp : TEXTURES.balanced;
+      state.texture = profile === "github" ? "sharp" : "balanced";
+      state.textureNotice = `${config.label} 加载失败，已自动切换到 ${fallback.label}。`;
+      byId("textureSelect").value = state.texture;
+      if (globe) globe.globeImageUrl(fallback.url);
+    }
+  }
+
+  function renderStatus(context) {
+    byId("queryMeta").textContent = context.entity
+      ? `已锁定：${context.entity.name}`
+      : (context.mode === "camera" ? "当前视角区域" : "全链路视角");
+    byId("statusText").textContent = context.entity
+      ? `围绕 ${context.entity.name} 显示 ${fmt.format(context.focus.length)} 条关系`
+      : `当前显示 ${fmt.format(context.focus.length)} 条关系`;
+
+    byId("chips").innerHTML = [
+      `关系 ${fmt.format(context.focus.length)}`,
+      `视角 ${state.view.lat.toFixed(1)}°, ${state.view.lng.toFixed(1)}°`,
+      `影像 ${TEXTURES[state.texture].label}`,
+      state.stage !== "all" ? `环节 ${displayStage(state.stage)}` : "",
+      context.entity ? `实体 ${context.entity.name}` : "",
+      state.globeMode === "fallback" ? "地球 底图模式" : ""
+    ].filter(Boolean).map((item) => `<span class="chip">${esc(item)}</span>`).join("");
+
+    byId("textureHint").textContent = [state.textureNotice, state.globeNotice, FILE_PROTOCOL_HINT].filter(Boolean).join(" ");
+  }
+
+  function renderAll(options = {}) {
+    const { recenter = true, updateGlobe = true } = options;
+    const context = computeContext();
+    renderFocusChip(context);
+    renderStatus(context);
+    renderResults();
+    renderSummary(context);
+    renderTxCard(context);
+    renderRelationList(context);
+    renderRegion(context);
+    renderChain(context);
+    renderHierarchy(context);
+    if (updateGlobe) renderGlobe(context, { recenter });
+  }
+
+  function selectEntity(entityId) {
+    state.selectedEntityId = entityId || "";
+    const base = stageFilteredTransactions();
+    const related = entityId ? entityFocusedTransactions(base, entityId) : [];
+    state.selectedTxId = related[0]?.id || "";
+    renderAll({ recenter: true, updateGlobe: true });
+  }
+
+  function selectTransaction(txId) {
+    if (!txById.has(txId)) return;
+    state.selectedTxId = txId;
+    renderAll({ recenter: true, updateGlobe: true });
+  }
+
+  function resetAll() {
+    state.selectedEntityId = "";
+    state.selectedTxId = "";
+    state.stage = "all";
+    state.labels = true;
+    state.dense = false;
+    state.autoRotate = true;
+    state.view = { lat: 16, lng: 102, altitude: 2.35 };
+    byId("searchInput").value = "";
+    byId("stageSelect").value = "all";
+    byId("labelsBtn").classList.add("is-on");
+    byId("densityBtn").classList.remove("is-on");
+    byId("rotateBtn").classList.add("is-on");
+    renderAll({ recenter: true, updateGlobe: true });
+  }
+
+  byId("stageSelect").innerHTML = `<option value="all">全部环节</option>${stageOrder.map((stage) => `<option value="${esc(stage)}">${esc(displayStage(stage))}</option>`).join("")}`;
+
+  byId("results").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-entity]");
+    if (!button) return;
+    selectEntity(button.dataset.entity);
+  });
+
+  byId("relationList").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-tx]");
+    if (!button) return;
+    selectTransaction(button.dataset.tx);
+  });
+
+  byId("hierarchyBody").addEventListener("click", (event) => {
+    const txButton = event.target.closest("[data-tx]");
+    if (txButton) selectTransaction(txButton.dataset.tx);
+    const entityButton = event.target.closest("[data-entity]");
+    if (entityButton && entityButton.dataset.entity) selectEntity(entityButton.dataset.entity);
+  });
+
+  byId("regionSvg").addEventListener("click", (event) => {
+    const txNode = event.target.closest("[data-tx]");
+    if (txNode) {
+      selectTransaction(txNode.dataset.tx);
       return;
     }
-    const lat = use.reduce((sum, point) => sum + point.lat, 0) / use.length;
-    const lng = use.reduce((sum, point) => sum + point.lon, 0) / use.length;
-    g.pointOfView({ lat, lng, altitude: state.entityId ? (state.dense ? 1.75 : 1.55) : (state.dense ? 2.35 : 2.15) }, 900);
-  } catch (error) {
-    console.error(error);
-    setGlobeState("fallback", "三维地球渲染失败，页面已保留本地地球底图和图谱面板。");
-  }
-}
+    const entityNode = event.target.closest("[data-entity]");
+    if (entityNode && entityNode.dataset.entity) selectEntity(entityNode.dataset.entity);
+  });
 
-function render() {
-  const base = stageFilteredTransactions();
-  const focus = focusedTransactions();
-  const entity = currentEntity();
-  byId("queryMeta").textContent = entity ? `已聚焦：${entityLabel(entity)}` : "全链路视图";
-  byId("detailMeta").textContent = entity ? "实体聚焦" : "全局概览";
-  byId("statusText").textContent = entity ? `围绕 ${entityLabel(entity)} 的 ${fmt.format(focus.length)} 条关系` : `当前显示 ${fmt.format(base.length)} 条交易关系`;
-  byId("chips").innerHTML = [
-    `关系 ${fmt.format(focus.length)}`,
-    entity ? displayCountry(entity.country) : "",
-    entity && entity.type === "company" ? `设施 ${fmt.format((companyFacilities.get(entity.id) || []).length)}` : "",
-    state.stage !== "all" ? `环节 ${displayStage(state.stage)}` : "",
-    `影像 ${TEXTURES[state.texture].label}`,
-    state.globeMode === "fallback" ? "地球 底图模式" : ""
-  ].filter(Boolean).map((item) => `<span class="chip">${esc(item)}</span>`).join("");
-  byId("textureHint").textContent = [state.textureWarning || TEXTURES[state.texture].hint, state.globeNotice, FILE_PROTOCOL_HINT].filter(Boolean).join(" ");
-  renderResults();
-  renderDetail(focus);
-  renderCard();
-  renderRegion(focus);
-  renderFlow(focus);
-  renderHierarchy(focus);
-  renderGlobe(base, focus);
-}
+  byId("chainSvg").addEventListener("click", (event) => {
+    const txNode = event.target.closest("[data-tx]");
+    if (txNode) {
+      selectTransaction(txNode.dataset.tx);
+      return;
+    }
+    const entityNode = event.target.closest("[data-entity]");
+    if (entityNode && entityNode.dataset.entity) selectEntity(entityNode.dataset.entity);
+  });
 
-byId("results").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-entity]");
-  if (!button) return;
-  selectEntity(button.dataset.entity);
-});
-byId("searchInput").addEventListener("input", renderResults);
-byId("searchInput").addEventListener("keydown", (event) => {
-  if (event.key !== "Enter") return;
-  const first = byId("results").querySelector("[data-entity]");
-  if (first) selectEntity(first.dataset.entity);
-});
-byId("stageSelect").innerHTML = `<option value="all">全部环节</option>${stageOrder.map((stage) => `<option value="${esc(stage)}">${esc(displayStage(stage))}</option>`).join("")}`;
-byId("stageSelect").addEventListener("change", (event) => {
-  state.stage = event.target.value;
-  render();
-});
-byId("textureSelect").addEventListener("change", (event) => {
-  applyTextureProfile(event.target.value).finally(() => render());
-});
-byId("clearBtn").addEventListener("click", () => {
-  byId("searchInput").value = "";
-  state.entityId = "";
-  state.selectedTxId = "";
-  setCard(null, null);
-  render();
-});
-byId("closeCardBtn").addEventListener("click", () => {
-  setCard(null, null);
-});
-byId("resetBtn").addEventListener("click", () => {
-  state.entityId = "";
-  state.selectedTxId = "";
-  state.stage = "all";
-  state.dense = false;
-  state.labels = true;
-  state.rotate = true;
-  byId("searchInput").value = "";
-  byId("stageSelect").value = "all";
-  byId("labelsBtn").classList.add("is-on");
-  byId("rotateBtn").classList.add("is-on");
-  byId("densityBtn").classList.remove("is-on");
-  setCard(null, null);
-  render();
-});
-byId("labelsBtn").addEventListener("click", (event) => {
-  state.labels = !state.labels;
-  event.currentTarget.classList.toggle("is-on", state.labels);
-  render();
-});
-byId("densityBtn").addEventListener("click", (event) => {
-  state.dense = !state.dense;
-  event.currentTarget.classList.toggle("is-on", state.dense);
-  render();
-});
-byId("rotateBtn").addEventListener("click", (event) => {
-  state.rotate = !state.rotate;
-  event.currentTarget.classList.toggle("is-on", state.rotate);
-  render();
-});
-byId("zoomInBtn").addEventListener("click", () => {
-  const g = ensureGlobe();
-  if (!g) return;
-  const view = g.pointOfView();
-  g.pointOfView({ lat: view.lat, lng: view.lng, altitude: Math.max(0.8, view.altitude * 0.82) }, 450);
-});
-byId("zoomOutBtn").addEventListener("click", () => {
-  const g = ensureGlobe();
-  if (!g) return;
-  const view = g.pointOfView();
-  g.pointOfView({ lat: view.lat, lng: view.lng, altitude: Math.min(4, view.altitude * 1.18) }, 450);
-});
-byId("regionSvg").addEventListener("click", (event) => {
-  const txNode = event.target.closest("[data-tx]");
-  if (txNode) {
-    selectTransaction(txNode.dataset.tx);
-    render();
-    return;
-  }
-  const entityNode = event.target.closest("[data-entity]");
-  if (entityNode && entityNode.dataset.entity) selectEntity(entityNode.dataset.entity);
-});
-byId("flowSvg").addEventListener("click", (event) => {
-  const txNode = event.target.closest("[data-tx]");
-  if (txNode) {
-    selectTransaction(txNode.dataset.tx);
-    render();
-    return;
-  }
-  const stageNode = event.target.closest("[data-stage]");
-  if (stageNode && stageNode.dataset.stage) {
-    state.stage = stageNode.dataset.stage;
-    byId("stageSelect").value = state.stage;
-    render();
-  }
-});
-byId("hierarchyBody").addEventListener("click", (event) => {
-  const txNode = event.target.closest("[data-tx]");
-  if (txNode) {
-    selectTransaction(txNode.dataset.tx);
-    render();
-  }
-  const entityNode = event.target.closest("[data-entity]");
-  if (entityNode && entityNode.dataset.entity) selectEntity(entityNode.dataset.entity);
-});
-byId("cardBody").addEventListener("click", (event) => {
-  const txNode = event.target.closest("[data-tx]");
-  if (txNode) {
-    selectTransaction(txNode.dataset.tx);
-    render();
-  }
-});
-window.addEventListener("resize", () => {
-  if (globe) globe.width(byId("globe").clientWidth || innerWidth).height(byId("globe").clientHeight || innerHeight);
-});
+  byId("searchInput").addEventListener("input", renderResults);
+  byId("searchInput").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const first = byId("results").querySelector("[data-entity]");
+    if (first) selectEntity(first.dataset.entity);
+  });
 
-setupFallbackEarth();
-setupFallbackInteraction();
-setGlobeState("fallback", "");
-applyTextureProfile(state.texture).finally(() => render());
+  byId("stageSelect").addEventListener("change", (event) => {
+    state.stage = event.target.value;
+    renderAll({ recenter: true, updateGlobe: true });
+  });
+
+  byId("textureSelect").addEventListener("change", (event) => {
+    applyTextureProfile(event.target.value).finally(() => renderAll({ recenter: false, updateGlobe: true }));
+  });
+
+  byId("clearBtn").addEventListener("click", () => {
+    state.selectedEntityId = "";
+    state.selectedTxId = "";
+    byId("searchInput").value = "";
+    renderAll({ recenter: false, updateGlobe: true });
+  });
+
+  byId("resetBtn").addEventListener("click", resetAll);
+
+  byId("labelsBtn").addEventListener("click", (event) => {
+    state.labels = !state.labels;
+    event.currentTarget.classList.toggle("is-on", state.labels);
+    renderAll({ recenter: false, updateGlobe: true });
+  });
+
+  byId("densityBtn").addEventListener("click", (event) => {
+    state.dense = !state.dense;
+    event.currentTarget.classList.toggle("is-on", state.dense);
+    renderAll({ recenter: false, updateGlobe: true });
+  });
+
+  byId("rotateBtn").addEventListener("click", (event) => {
+    state.autoRotate = !state.autoRotate;
+    event.currentTarget.classList.toggle("is-on", state.autoRotate);
+    renderAll({ recenter: false, updateGlobe: true });
+  });
+
+  byId("zoomInBtn").addEventListener("click", () => {
+    const g = ensureGlobe();
+    if (!g) return;
+    const view = g.pointOfView();
+    setPointOfView({
+      lat: Number(view.lat),
+      lng: Number(view.lng),
+      altitude: clamp(Number(view.altitude) * 0.82, 0.72, 3.6)
+    }, 420);
+    window.setTimeout(() => renderAll({ recenter: false, updateGlobe: false }), 440);
+  });
+
+  byId("zoomOutBtn").addEventListener("click", () => {
+    const g = ensureGlobe();
+    if (!g) return;
+    const view = g.pointOfView();
+    setPointOfView({
+      lat: Number(view.lat),
+      lng: Number(view.lng),
+      altitude: clamp(Number(view.altitude) * 1.2, 0.72, 3.6)
+    }, 420);
+    window.setTimeout(() => renderAll({ recenter: false, updateGlobe: false }), 440);
+  });
+
+  window.addEventListener("resize", () => {
+    if (globe) globe.width(globeHost.clientWidth || window.innerWidth).height(globeHost.clientHeight || window.innerHeight);
+  });
+
+  buildLegend();
+  setupFallbackEarth();
+  setupFallbackInteraction();
+  setGlobeState("fallback", "");
+  applyTextureProfile(state.texture).finally(() => renderAll({ recenter: true, updateGlobe: true }));
 })();
