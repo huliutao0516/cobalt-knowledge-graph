@@ -1,0 +1,125 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>钴供应链知识图谱平台</title>
+<link rel="stylesheet" href="assets/cobalt_geoscene.css">
+<script src="assets/globe.gl.min.js"></script>
+<script src="assets/cobalt_geoscene_data.js"></script>
+<script src="assets/earth_fallback_texture.js"></script>
+</head>
+<body>
+<div id="globe">
+  <div id="earthFallback" aria-hidden="true">
+    <div class="earth-aura"></div>
+    <div class="earth-sphere">
+      <div class="earth-cloud"></div>
+      <div class="earth-shade"></div>
+      <div class="earth-specular"></div>
+    </div>
+  </div>
+</div>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">钴供应链知识图谱</div>
+    <div>
+      <h1>钴全球供应链知识图谱平台</h1>
+      <p>GeoScene 风格空间图谱预览，支持搜索、区域钻取、详情卡片和上下游分层追踪</p>
+    </div>
+  </header>
+
+  <aside class="rail panel">
+    <button id="resetBtn" title="重置">复</button>
+    <button id="zoomInBtn" title="放大">+</button>
+    <button id="zoomOutBtn" title="缩小">-</button>
+    <button id="labelsBtn" class="is-on" title="标签">标</button>
+    <button id="densityBtn" title="密度">密</button>
+    <button id="rotateBtn" class="is-on" title="旋转">转</button>
+  </aside>
+
+  <section class="panel query-panel">
+    <div class="panel-head">
+      <span>搜索与筛选</span>
+      <span id="queryMeta" class="meta">全链路视图</span>
+    </div>
+    <div class="panel-body">
+      <label class="field-label" for="searchInput">搜索企业 / 矿点 / 设施</label>
+      <input id="searchInput" type="text" placeholder="输入企业、矿点或设施名称">
+      <div class="results" id="results"></div>
+
+      <div class="two-col compact-top">
+        <div>
+          <label class="field-label" for="stageSelect">链条环节</label>
+          <select id="stageSelect"></select>
+        </div>
+        <div>
+          <label class="field-label" for="textureSelect">地球影像</label>
+          <select id="textureSelect">
+            <option value="balanced">本地流畅版</option>
+            <option value="sharp">本地高清版</option>
+            <option value="github">GitHub 高清版</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="status-row compact-top">
+        <div id="statusText" class="meta strong">当前显示全部交易关系</div>
+        <button id="clearBtn" class="mini-btn">清空</button>
+      </div>
+      <div id="chips" class="chips compact-top"></div>
+      <div id="textureHint" class="subnote compact-top"></div>
+    </div>
+  </section>
+
+  <section class="panel detail-panel">
+    <div class="panel-head">
+      <span>概要信息</span>
+      <span id="detailMeta" class="meta">全局概览</span>
+    </div>
+    <div id="detailBody" class="panel-body"></div>
+  </section>
+
+  <section class="panel card-panel is-hidden" id="infoCard">
+    <div class="panel-head">
+      <span>详情卡片</span>
+      <button id="closeCardBtn" class="ghost-btn">关闭</button>
+    </div>
+    <div id="cardBody" class="panel-body"></div>
+  </section>
+
+  <section class="panel region-panel">
+    <div class="panel-head">
+      <span>区域钻取</span>
+      <span id="regionMeta" class="meta">当前筛选范围内的二维局部关系</span>
+    </div>
+    <div class="panel-body">
+      <div id="regionCaption" class="subnote"></div>
+      <svg id="regionSvg" viewBox="0 0 960 520" preserveAspectRatio="none"></svg>
+    </div>
+  </section>
+
+  <section class="panel flow-panel">
+    <div class="panel-head">
+      <span>环节流向</span>
+      <span id="flowMeta" class="meta">环节到环节的关系迁移</span>
+    </div>
+    <div class="panel-body">
+      <div id="flowCaption" class="subnote"></div>
+      <svg id="flowSvg" viewBox="0 0 1200 560" preserveAspectRatio="none"></svg>
+    </div>
+  </section>
+
+  <section class="panel hierarchy-panel">
+    <div class="panel-head">
+      <span>上下游分层</span>
+      <span id="hierarchyMeta" class="meta">围绕当前实体展开</span>
+    </div>
+    <div id="hierarchyBody" class="panel-body"></div>
+  </section>
+
+  <div id="tooltip"></div>
+</div>
+<script src="assets/cobalt_geoscene_app.js"></script>
+</body>
+</html>
