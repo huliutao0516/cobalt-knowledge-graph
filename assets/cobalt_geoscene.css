@@ -189,6 +189,12 @@ body.globe-ready #earthFallback {
   color: var(--accent-strong);
 }
 
+.panel-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .panel-body {
   padding: 14px 16px 16px;
 }
@@ -291,7 +297,7 @@ body.globe-ready #earthFallback {
   left: 24px;
   right: 24px;
   bottom: 24px;
-  height: min(30vh, 360px);
+  height: min(34vh, 420px);
   display: grid;
   grid-template-columns: minmax(360px, 1.05fr) minmax(440px, 1.4fr) 430px;
   gap: 18px;
@@ -315,6 +321,19 @@ body.globe-ready #earthFallback {
   height: calc(100% - 48px);
   display: flex;
   flex-direction: column;
+}
+
+.graph-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 14px;
+  background: rgba(4, 10, 18, 0.46);
+  margin-top: 10px;
+}
+
+.graph-scroll svg {
+  min-height: 100%;
 }
 
 .hierarchy-panel .panel-body {
@@ -402,6 +421,10 @@ button.is-on {
 .mini-btn {
   padding: 8px 12px;
   white-space: nowrap;
+}
+
+.is-hidden {
+  display: none !important;
 }
 
 .two-col {
@@ -594,6 +617,11 @@ button.is-on {
   background: rgba(12, 29, 46, 0.92);
 }
 
+.evidence-card.is-active {
+  border-color: rgba(167, 225, 255, 0.46);
+  background: rgba(12, 29, 46, 0.92);
+}
+
 .relation-route {
   margin-top: 8px;
   display: flex;
@@ -626,6 +654,10 @@ button.is-on {
   border-bottom: 1px dashed rgba(98, 213, 255, 0.4);
 }
 
+.source-link:hover {
+  color: #bfe9ff;
+}
+
 .empty-state {
   padding: 14px;
   border: 1px dashed rgba(111, 200, 255, 0.12);
@@ -639,6 +671,8 @@ svg {
   display: block;
   width: 100%;
   height: 100%;
+  text-rendering: geometricPrecision;
+  shape-rendering: geometricPrecision;
 }
 
 .region-grid-line,
@@ -755,6 +789,198 @@ svg {
   box-shadow: 0 0 12px color-mix(in srgb, var(--dot, #7fd0ff) 60%, transparent);
 }
 
+.evidence-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(2, 7, 14, 0.46);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+
+.evidence-modal {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%);
+  z-index: 11;
+  width: min(82vw, 1240px);
+  height: min(78vh, 860px);
+}
+
+.evidence-body {
+  height: calc(100% - 48px);
+  display: grid;
+  grid-template-columns: 250px 1fr 1fr;
+  gap: 16px;
+  min-height: 0;
+}
+
+.evidence-profile,
+.evidence-column {
+  min-height: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(111, 200, 255, 0.1);
+  background: rgba(6, 13, 23, 0.44);
+}
+
+.evidence-profile {
+  padding: 16px;
+  overflow: auto;
+}
+
+.evidence-column {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.evidence-column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.evidence-column-head h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--accent-strong);
+}
+
+.evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.evidence-profile-title {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.evidence-profile-sub {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.evidence-profile-group + .evidence-profile-group {
+  margin-top: 18px;
+}
+
+.evidence-profile-group h4 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--accent-strong);
+}
+
+.evidence-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--badge, #4a80a8);
+}
+
+.evidence-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.evidence-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.evidence-mini-item {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(7, 18, 31, 0.74);
+  border: 1px solid rgba(111, 200, 255, 0.08);
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.evidence-card {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(111, 200, 255, 0.12);
+  background: rgba(248, 251, 255, 0.04);
+  cursor: pointer;
+}
+
+.evidence-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.evidence-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.evidence-kv {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  gap: 6px 10px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.evidence-kv dt {
+  color: #c4d8eb;
+  font-weight: 600;
+}
+
+.evidence-kv dd {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.evidence-note {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.chart-label {
+  fill: #f1f8ff;
+  stroke: rgba(3, 12, 22, 0.92);
+  stroke-width: 2.4;
+  paint-order: stroke;
+  font-weight: 600;
+}
+
+.chart-sub-label {
+  fill: #9eb4cb;
+  stroke: rgba(3, 12, 22, 0.84);
+  stroke-width: 1.8;
+  paint-order: stroke;
+}
+
 @keyframes earthSpin {
   from {
     background-position: center, center, 12% 50%, center;
@@ -800,6 +1026,14 @@ svg {
   .hierarchy-panel {
     grid-area: hierarchy;
     min-height: 220px;
+  }
+
+  .evidence-modal {
+    width: min(92vw, 1120px);
+  }
+
+  .evidence-body {
+    grid-template-columns: 220px 1fr 1fr;
   }
 }
 
@@ -875,5 +1109,29 @@ svg {
 
   .hierarchy-columns {
     grid-template-columns: 1fr;
+  }
+
+  .evidence-modal {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    width: calc(100% - 32px);
+    height: auto;
+    margin: 0 16px 16px;
+  }
+
+  .evidence-backdrop {
+    position: fixed;
+  }
+
+  .evidence-body {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .evidence-column,
+  .evidence-profile {
+    max-height: 42vh;
   }
 }

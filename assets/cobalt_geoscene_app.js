@@ -203,6 +203,7 @@
     autoRotate: true,
     selectedEntityId: "",
     selectedTxId: "",
+    evidenceOpen: false,
     view: { lat: 16, lng: 102, altitude: 2.35 },
     textureNotice: "",
     globeNotice: "",
@@ -302,6 +303,21 @@
     return isNum(value) ? Number(value).toFixed(2) : "未标注";
   }
 
+  function transactionCommodity(tx) {
+    const inbound = tx.inputCommodities.join(" / ");
+    const outbound = tx.outputCommodities.join(" / ");
+    if (inbound && outbound && inbound !== outbound) return `${inbound} → ${outbound}`;
+    return outbound || inbound || "未标注";
+  }
+
+  function getSvgViewport(svg, fallbackWidth, fallbackHeight) {
+    const rect = svg.getBoundingClientRect();
+    const width = Math.max(320, Math.round(rect.width || fallbackWidth));
+    const height = Math.max(220, Math.round(rect.height || fallbackHeight));
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    return { width, height };
+  }
+
   function dominantStageForEntity(entityId) {
     const counts = new Map();
     (txByEntity.get(entityId) || []).forEach((tx) => {
@@ -385,19 +401,27 @@
     return state.selectedTxId ? txById.get(state.selectedTxId) || null : null;
   }
 
+  function entityScopeIds(entityId) {
+    const scope = new Set();
+    if (!entityId) return scope;
+    scope.add(entityId);
+    const entity = entities.get(entityId);
+    if (entity?.type === "company") {
+      (companyFacilities.get(entity.id) || []).forEach((facilityId) => scope.add(facilityId));
+    } else {
+      const ownerId = facilityCompany.get(entityId);
+      if (ownerId) scope.add(ownerId);
+    }
+    return scope;
+  }
+
   function stageFilteredTransactions() {
     if (state.stage === "all") return transactions;
     return transactions.filter((tx) => tx.supplierStage === state.stage || tx.buyerStage === state.stage);
   }
 
   function entityFocusedTransactions(base, entityId) {
-    const scopedIds = new Set([entityId]);
-    const entity = entities.get(entityId);
-    if (entity?.type === "company") {
-      (companyFacilities.get(entity.id) || []).forEach((facilityId) => scopedIds.add(facilityId));
-    }
-    const owner = facilityCompany.get(entityId);
-    if (owner) scopedIds.add(owner);
+    const scopedIds = entityScopeIds(entityId);
     return base.filter((tx) =>
       scopedIds.has(tx.supplierCompanyId)
       || scopedIds.has(tx.buyerCompanyId)
@@ -762,6 +786,160 @@
       : "<div class='empty-state'>当前筛选条件下没有可展示的关系。</div>";
   }
 
+  function setEvidenceVisibility(open) {
+    const modal = byId("evidenceModal");
+    const backdrop = byId("evidenceBackdrop");
+    const openBtn = byId("openEvidenceBtn");
+    const visible = Boolean(open);
+    state.evidenceOpen = visible;
+    modal.classList.toggle("is-hidden", !visible);
+    backdrop.classList.toggle("is-hidden", !visible);
+    modal.setAttribute("aria-hidden", visible ? "false" : "true");
+    if (openBtn && !openBtn.classList.contains("is-hidden")) {
+      openBtn.textContent = visible ? "隐藏证据链" : "证据链";
+    }
+  }
+
+  function buildEvidenceProfile(entity, related) {
+    const stage = dominantStageForEntity(entity.id);
+    const stageBadge = stage ? `<span class="evidence-tag" style="--badge:${stageColor(stage)}">${esc(displayStage(stage))}</span>` : "";
+    const sourceCount = new Set(related.flatMap((tx) => tx.sourceIds)).size;
+    const quantityCount = related.filter((tx) => tx.hasQuantity).length;
+    const dateCount = related.filter((tx) => tx.hasDate).length;
+    const sourceHosts = [...new Set(related.flatMap((tx) => sourceLinksForTx(tx).map((source) => source.host || source.url)).filter(Boolean))].slice(0, 6);
+    const evidenceNotes = [...new Set(related.flatMap((tx) => tx.notes).filter(Boolean))].slice(0, 6);
+
+    let relatedEntities = [];
+    if (entity.type === "company") {
+      relatedEntities = (companyFacilities.get(entity.id) || [])
+        .map((facilityId) => entities.get(facilityId))
+        .filter(Boolean)
+        .slice(0, 8)
+        .map((item) => item.name);
+    } else {
+      const ownerId = facilityCompany.get(entity.id);
+      const owner = ownerId ? entities.get(ownerId) : null;
+      const siblings = ownerId
+        ? (companyFacilities.get(ownerId) || []).filter((facilityId) => facilityId !== entity.id).slice(0, 6).map((facilityId) => entities.get(facilityId)?.name).filter(Boolean)
+        : [];
+      relatedEntities = [owner?.name, ...siblings].filter(Boolean);
+    }
+
+    return `
+      <div class="evidence-profile-title">${esc(entity.name)}</div>
+      <div class="evidence-chip-row">
+        ${stageBadge}
+        <span class="chip">${esc(displayEntityType(entity.type))}</span>
+        <span class="chip">${esc(displayCountry(entity.country || ""))}</span>
+      </div>
+      <div class="evidence-profile-sub">${esc(entitySubtitle(entity))}</div>
+      <div class="evidence-profile-group">
+        <h4>证据概况</h4>
+        <div class="kv-list">
+          <div class="kv-row"><span>关联关系</span><strong>${fmt.format(related.length)}</strong></div>
+          <div class="kv-row"><span>来源文档</span><strong>${fmt.format(sourceCount)}</strong></div>
+          <div class="kv-row"><span>数量字段</span><strong>${fmt.format(quantityCount)}</strong></div>
+          <div class="kv-row"><span>时间字段</span><strong>${fmt.format(dateCount)}</strong></div>
+          <div class="kv-row"><span>地点</span><span class="value">${esc(safeText(entity.place, "未标注"))}</span></div>
+        </div>
+      </div>
+      <div class="evidence-profile-group">
+        <h4>${entity.type === "company" ? "关联设施" : "所属/相关主体"}</h4>
+        <div class="evidence-mini-list">
+          ${relatedEntities.length
+            ? relatedEntities.map((item) => `<div class="evidence-mini-item">${esc(item)}</div>`).join("")
+            : "<div class='empty-state'>当前数据里没有更多附属主体字段。</div>"}
+        </div>
+      </div>
+      <div class="evidence-profile-group">
+        <h4>来源站点</h4>
+        <div class="evidence-mini-list">
+          ${sourceHosts.length
+            ? sourceHosts.map((item) => `<div class="evidence-mini-item">${esc(item)}</div>`).join("")
+            : "<div class='empty-state'>当前关系没有外部来源链接。</div>"}
+        </div>
+      </div>
+      <div class="evidence-profile-group">
+        <h4>证据摘录</h4>
+        <div class="evidence-mini-list">
+          ${evidenceNotes.length
+            ? evidenceNotes.map((item) => `<div class="evidence-mini-item">${esc(item)}</div>`).join("")
+            : "<div class='empty-state'>当前关系没有附加备注。</div>"}
+        </div>
+      </div>
+    `;
+  }
+
+  function evidenceCardHtml(tx, direction) {
+    const upstream = direction === "upstream";
+    const counterpartId = upstream
+      ? (tx.supplierFacilityId || tx.supplierCompanyId)
+      : (tx.buyerFacilityId || tx.buyerCompanyId);
+    const counterpartName = upstream
+      ? entityTitle(counterpartId, tx.supplierCompany || tx.supplierFacility)
+      : entityTitle(counterpartId, tx.buyerCompany || tx.buyerFacility);
+    const stage = upstream ? tx.supplierStage : tx.buyerStage;
+    const roleLabel = upstream ? "供应方" : "采购方";
+    const sourceLinks = sourceLinksForTx(tx);
+    const active = tx.id === state.selectedTxId;
+
+    return `
+      <article class="evidence-card ${active ? "is-active" : ""}" data-tx="${esc(tx.id)}">
+        <div class="evidence-card-head">
+          <span class="evidence-tag" style="--badge:${stageColor(stage)}">${esc(displayStage(stage))}</span>
+          <span class="meta">${esc(formatAmount(tx))}</span>
+        </div>
+        <div class="evidence-card-title">${esc(counterpartName)}</div>
+        <dl class="evidence-kv">
+          <dt>${roleLabel}</dt>
+          <dd>${esc(upstream ? (tx.supplierCompany || tx.supplierFacility || "未标注") : (tx.buyerCompany || tx.buyerFacility || "未标注"))}</dd>
+          <dt>商品</dt>
+          <dd>${esc(transactionCommodity(tx))}</dd>
+          <dt>时间</dt>
+          <dd>${esc(formatDate(tx))}</dd>
+          <dt>来源</dt>
+          <dd>${sourceLinks.length
+            ? sourceLinks.slice(0, 3).map((source) => `<a class="source-link" href="${esc(source.url)}" target="_blank" rel="noreferrer">${esc(source.host || "Link")}</a>`).join(" / ")
+            : "未标注"}</dd>
+        </dl>
+        ${tx.notes.length ? `<div class="evidence-note">${esc(tx.notes.join("； "))}</div>` : ""}
+      </article>
+    `;
+  }
+
+  function renderEvidenceChain(context) {
+    const openBtn = byId("openEvidenceBtn");
+    const entity = context.entity;
+    if (!entity) {
+      openBtn.classList.add("is-hidden");
+      setEvidenceVisibility(false);
+      byId("evidenceProfile").innerHTML = "";
+      byId("evidenceUpstream").innerHTML = "";
+      byId("evidenceDownstream").innerHTML = "";
+      return;
+    }
+
+    openBtn.classList.remove("is-hidden");
+    openBtn.textContent = state.evidenceOpen ? "隐藏证据链" : "证据链";
+    const scope = entityScopeIds(entity.id);
+    const related = entityFocusedTransactions(context.base, entity.id);
+    const upstream = sortTransactionsForList(related.filter((tx) => scope.has(tx.buyerCompanyId) || scope.has(tx.buyerFacilityId)));
+    const downstream = sortTransactionsForList(related.filter((tx) => scope.has(tx.supplierCompanyId) || scope.has(tx.supplierFacilityId)));
+
+    byId("evidenceMeta").textContent = `围绕 ${entity.name} 展开的来源与去向`;
+    byId("evidenceUpstreamMeta").textContent = `${fmt.format(upstream.length)} 条`;
+    byId("evidenceDownstreamMeta").textContent = `${fmt.format(downstream.length)} 条`;
+    byId("evidenceProfile").innerHTML = buildEvidenceProfile(entity, related);
+    byId("evidenceUpstream").innerHTML = upstream.length
+      ? upstream.map((tx) => evidenceCardHtml(tx, "upstream")).join("")
+      : "<div class='empty-state'>当前实体在现有数据中没有识别到上游采购记录。</div>";
+    byId("evidenceDownstream").innerHTML = downstream.length
+      ? downstream.map((tx) => evidenceCardHtml(tx, "downstream")).join("")
+      : "<div class='empty-state'>当前实体在现有数据中没有识别到下游供给记录。</div>";
+
+    setEvidenceVisibility(state.evidenceOpen);
+  }
+
   function boundsFromPoints(points) {
     const lats = points.map((point) => point.lat);
     const lons = points.map((point) => point.lon);
@@ -844,20 +1022,28 @@
     const model = buildRegionModel(context);
     const svg = byId("regionSvg");
     const stats = byId("regionStats");
-    const width = 1100;
-    const height = 560;
+    const baseViewport = getSvgViewport(svg, 900, 320);
+    const width = Math.max(baseViewport.width, 920);
+    const height = Math.max(baseViewport.height, 320);
+    const paddingX = clamp(Math.round(width * 0.07), 46, 86);
+    const paddingY = clamp(Math.round(height * 0.12), 34, 64);
+    const labelFont = clamp(Math.round(height * 0.042), 12, 16);
+    const metaFont = clamp(Math.round(height * 0.032), 10, 13);
+    svg.style.width = `${width}px`;
+    svg.style.height = `${height}px`;
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
     if (!model.points.length) {
       byId("regionCaption").textContent = "当前视角内没有可投影到局部区域的落点。";
       stats.innerHTML = "";
-      svg.innerHTML = `<foreignObject x="18" y="20" width="1060" height="200"><div xmlns="http://www.w3.org/1999/xhtml" class="empty-state">请拖动地球到有节点的区域，或点击企业/关系后查看局部区域映射。</div></foreignObject>`;
+      svg.innerHTML = `<foreignObject x="18" y="20" width="${width - 36}" height="${Math.max(180, height - 40)}"><div xmlns="http://www.w3.org/1999/xhtml" class="empty-state">请拖动地球到有节点的区域，或点击企业/关系后查看局部区域映射。</div></foreignObject>`;
       return;
     }
 
     const bounds = boundsFromPoints(model.points);
     const countries = new Set(model.points.map((point) => displayCountry(point.country)).filter(Boolean));
     const stageSet = new Set(model.points.map((point) => point.dominantStage).filter(Boolean));
-    const projected = new Map(model.points.map((point) => [point.key, projectRegionPoint(point, bounds, width, height)]));
+    const projected = new Map(model.points.map((point) => [point.key, projectRegionPoint(point, bounds, width, height, paddingX, paddingY)]));
 
     byId("regionMeta").textContent = context.mode === "camera" ? "当前视角对应的地理窗口" : "当前焦点下的真实坐标投影";
     byId("regionCaption").textContent = `纬度 ${bounds.minLat.toFixed(1)}° 至 ${bounds.maxLat.toFixed(1)}°，经度 ${bounds.minLon.toFixed(1)}° 至 ${bounds.maxLon.toFixed(1)}°；共 ${fmt.format(model.points.length)} 个落点、${fmt.format(model.links.length)} 条关系。`;
@@ -869,10 +1055,10 @@
 
     const gridLines = [];
     for (let i = 0; i <= 4; i += 1) {
-      const x = 72 + (i / 4) * (width - 144);
-      const y = 54 + (i / 4) * (height - 108);
-      gridLines.push(`<line class="region-grid-line" x1="${x}" y1="54" x2="${x}" y2="${height - 54}" />`);
-      gridLines.push(`<line class="region-grid-line" x1="72" y1="${y}" x2="${width - 72}" y2="${y}" />`);
+      const x = paddingX + (i / 4) * (width - paddingX * 2);
+      const y = paddingY + (i / 4) * (height - paddingY * 2);
+      gridLines.push(`<line class="region-grid-line" x1="${x}" y1="${paddingY}" x2="${x}" y2="${height - paddingY}" />`);
+      gridLines.push(`<line class="region-grid-line" x1="${paddingX}" y1="${y}" x2="${width - paddingX}" y2="${y}" />`);
     }
 
     const linkHtml = model.links.map((link) => {
@@ -897,7 +1083,7 @@
 
     const labelPoints = [...model.points]
       .sort((a, b) => Number(b.selected) - Number(a.selected) || b.weight - a.weight)
-      .slice(0, context.mode === "entity" ? 14 : 10);
+      .slice(0, width > 1200 ? 14 : 9);
 
     const pointHtml = model.points.map((point) => {
       const p = projected.get(point.key);
@@ -905,7 +1091,7 @@
       const color = stageColor(point.dominantStage);
       const radius = point.selected ? 8.5 : clamp(4 + point.weight * 0.22, 4.5, 7.5);
       const label = labelPoints.includes(point)
-        ? `<text x="${p.x + 10}" y="${p.y - 10}" fill="#eaf5ff" font-size="12">${esc(shortText(point.name, 26))}</text>`
+        ? `<text class="chart-label" x="${p.x + 12}" y="${p.y - 12}" font-size="${labelFont}">${esc(shortText(point.name, width > 1200 ? 28 : 20))}</text>`
         : "";
       return `
         <g class="region-node" data-entity="${esc(point.entityId || "")}">
@@ -922,6 +1108,7 @@
       ${gridLines.join("")}
       ${linkHtml}
       ${pointHtml}
+      <text class="chart-sub-label" x="${paddingX}" y="${height - 14}" font-size="${metaFont}">说明：点击节点查看实体，点击连线查看关系证据。</text>
     `;
   }
 
@@ -988,12 +1175,19 @@
   function renderChain(context) {
     const model = buildChainModel(context);
     const svg = byId("chainSvg");
-    const width = 1320;
-    const height = 560;
+    const baseViewport = getSvgViewport(svg, 980, 320);
+    const width = Math.max(baseViewport.width, 1320);
+    const height = Math.max(baseViewport.height, 320);
+    const stageFont = clamp(Math.round(height * 0.05), 12, 16);
+    const nodeFont = clamp(Math.round(height * 0.04), 11, 14);
+    const metaFont = clamp(Math.round(height * 0.034), 10, 12);
+    svg.style.width = `${width}px`;
+    svg.style.height = `${height}px`;
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
     if (!model.nodes.length) {
       byId("chainCaption").textContent = "当前焦点下没有可展开的知识图谱结构。";
-      svg.innerHTML = `<foreignObject x="18" y="20" width="1280" height="220"><div xmlns="http://www.w3.org/1999/xhtml" class="empty-state">请先锁定一个企业、矿点或关系，再查看按供应链环节展开的知识图谱。</div></foreignObject>`;
+      svg.innerHTML = `<foreignObject x="18" y="20" width="${width - 36}" height="${Math.max(200, height - 40)}"><div xmlns="http://www.w3.org/1999/xhtml" class="empty-state">请先锁定一个企业、矿点或关系，再查看按供应链环节展开的知识图谱。</div></foreignObject>`;
       return;
     }
 
@@ -1022,7 +1216,7 @@
       const x = xPadding + stageStep * index;
       return `
         <line x1="${x}" y1="56" x2="${x}" y2="${height - 46}" stroke="rgba(111,200,255,.12)" stroke-width="1" />
-        <text x="${x}" y="34" text-anchor="middle" fill="#eaf5ff" font-size="13">${esc(displayStage(stage))}</text>
+        <text class="chart-label" x="${x}" y="34" text-anchor="middle" font-size="${stageFont}">${esc(displayStage(stage))}</text>
       `;
     }).join("");
 
@@ -1053,8 +1247,8 @@
         <g class="chain-node" data-entity="${esc(node.entityId || "")}">
           <circle cx="${node.x}" cy="${node.y}" r="${node.selected ? 17 : 15}" fill="${withAlpha(color, "22")}" stroke="${color}" stroke-width="1.2"></circle>
           <circle cx="${node.x}" cy="${node.y}" r="${node.selected ? 7.5 : 6.2}" fill="${color}" stroke="${node.selected ? "#fff" : "none"}" stroke-width="1.6"></circle>
-          <text x="${node.x}" y="${node.y - 24}" text-anchor="middle" fill="#dcebff" font-size="12">${esc(shortText(node.name, 18))}</text>
-          <text x="${node.x}" y="${node.y + 31}" text-anchor="middle" fill="#8fa8c2" font-size="11">${fmt.format(node.count)} 条</text>
+          <text class="chart-label" x="${node.x}" y="${node.y - 24}" text-anchor="middle" font-size="${nodeFont}">${esc(shortText(node.name, 18))}</text>
+          <text class="chart-sub-label" x="${node.x}" y="${node.y + 31}" text-anchor="middle" font-size="${metaFont}">${fmt.format(node.count)} 条</text>
           <title>${esc(node.name)}&#10;${esc(displayStage(node.stage))} | ${esc(displayCountry(node.country))}&#10;${esc(safeText(node.place, "未标注地点"))}</title>
         </g>
       `;
@@ -1069,6 +1263,7 @@
       ${stageGuides}
       ${edgeHtml}
       ${nodeHtml}
+      <text class="chart-sub-label" x="${xPadding}" y="${height - 12}" font-size="${metaFont}">说明：颜色表示环节类别；点击节点或连线可在右侧与证据链中联动。</text>
     `;
   }
 
@@ -1511,6 +1706,7 @@
     renderSummary(context);
     renderTxCard(context);
     renderRelationList(context);
+    renderEvidenceChain(context);
     renderRegion(context);
     renderChain(context);
     renderHierarchy(context);
@@ -1522,6 +1718,7 @@
     const base = stageFilteredTransactions();
     const related = entityId ? entityFocusedTransactions(base, entityId) : [];
     state.selectedTxId = related[0]?.id || "";
+    state.evidenceOpen = Boolean(entityId);
     renderAll({ recenter: true, updateGlobe: true });
   }
 
@@ -1534,6 +1731,7 @@
   function resetAll() {
     state.selectedEntityId = "";
     state.selectedTxId = "";
+    state.evidenceOpen = false;
     state.stage = "all";
     state.labels = true;
     state.dense = false;
@@ -1559,6 +1757,20 @@
     const button = event.target.closest("[data-tx]");
     if (!button) return;
     selectTransaction(button.dataset.tx);
+  });
+
+  byId("evidenceUpstream").addEventListener("click", (event) => {
+    if (event.target.closest("a")) return;
+    const card = event.target.closest("[data-tx]");
+    if (!card) return;
+    selectTransaction(card.dataset.tx);
+  });
+
+  byId("evidenceDownstream").addEventListener("click", (event) => {
+    if (event.target.closest("a")) return;
+    const card = event.target.closest("[data-tx]");
+    if (!card) return;
+    selectTransaction(card.dataset.tx);
   });
 
   byId("hierarchyBody").addEventListener("click", (event) => {
@@ -1607,8 +1819,22 @@
   byId("clearBtn").addEventListener("click", () => {
     state.selectedEntityId = "";
     state.selectedTxId = "";
+    state.evidenceOpen = false;
     byId("searchInput").value = "";
     renderAll({ recenter: false, updateGlobe: true });
+  });
+
+  byId("openEvidenceBtn").addEventListener("click", () => {
+    if (!currentEntity()) return;
+    setEvidenceVisibility(!state.evidenceOpen);
+  });
+
+  byId("closeEvidenceBtn").addEventListener("click", () => {
+    setEvidenceVisibility(false);
+  });
+
+  byId("evidenceBackdrop").addEventListener("click", () => {
+    setEvidenceVisibility(false);
   });
 
   byId("resetBtn").addEventListener("click", resetAll);
