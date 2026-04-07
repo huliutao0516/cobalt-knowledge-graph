@@ -974,6 +974,17 @@ svg {
   font-weight: 600;
 }
 
+.chart-label-box {
+  fill: rgba(6, 14, 24, 0.9);
+  stroke: rgba(111, 200, 255, 0.2);
+  stroke-width: 1;
+}
+
+.chart-pointer {
+  stroke: rgba(111, 200, 255, 0.34);
+  stroke-width: 1.1;
+}
+
 .chart-sub-label {
   fill: #9eb4cb;
   stroke: rgba(3, 12, 22, 0.84);

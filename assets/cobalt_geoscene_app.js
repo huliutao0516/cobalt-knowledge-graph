@@ -318,6 +318,171 @@
     return { width, height };
   }
 
+  function estimateTextWidth(text, fontSize) {
+    let units = 0;
+    for (const ch of String(text || "")) {
+      if (/\s/.test(ch)) units += 0.36;
+      else if (/[A-Z0-9]/.test(ch)) units += 0.68;
+      else if (/[a-z]/.test(ch)) units += 0.58;
+      else if (/[\u4e00-\u9fff]/.test(ch)) units += 1.02;
+      else units += 0.78;
+    }
+    return Math.max(fontSize * 2.2, units * fontSize * 0.68);
+  }
+
+  function boxesOverlap(a, b, gap = 0) {
+    return !(
+      a.x2 + gap < b.x1
+      || a.x1 - gap > b.x2
+      || a.y2 + gap < b.y1
+      || a.y1 - gap > b.y2
+    );
+  }
+
+  function clampLabelBox(box, bounds) {
+    const width = box.x2 - box.x1;
+    const height = box.y2 - box.y1;
+    let x1 = box.x1;
+    let y1 = box.y1;
+    if (x1 < bounds.minX) x1 = bounds.minX;
+    if (x1 + width > bounds.maxX) x1 = bounds.maxX - width;
+    if (y1 < bounds.minY) y1 = bounds.minY;
+    if (y1 + height > bounds.maxY) y1 = bounds.maxY - height;
+    return { x1, y1, x2: x1 + width, y2: y1 + height };
+  }
+
+  function makeLabelCandidate(item, variant, bounds) {
+    const paddingX = 8;
+    const paddingY = 4;
+    const textWidth = estimateTextWidth(item.text, item.fontSize);
+    const boxWidth = textWidth + paddingX * 2;
+    const boxHeight = item.fontSize + paddingY * 2 + 2;
+    const gap = item.nodeRadius + 10;
+
+    let box;
+    let textAnchor = "start";
+    let textX = item.x + gap + paddingX;
+    let textY = item.y;
+
+    switch (variant) {
+      case "right":
+        box = { x1: item.x + gap, y1: item.y - boxHeight / 2, x2: item.x + gap + boxWidth, y2: item.y + boxHeight / 2 };
+        textAnchor = "start";
+        textX = box.x1 + paddingX;
+        break;
+      case "left":
+        box = { x1: item.x - gap - boxWidth, y1: item.y - boxHeight / 2, x2: item.x - gap, y2: item.y + boxHeight / 2 };
+        textAnchor = "start";
+        textX = box.x1 + paddingX;
+        break;
+      case "top":
+        box = { x1: item.x - boxWidth / 2, y1: item.y - gap - boxHeight, x2: item.x + boxWidth / 2, y2: item.y - gap };
+        textAnchor = "middle";
+        textX = item.x;
+        break;
+      case "bottom":
+        box = { x1: item.x - boxWidth / 2, y1: item.y + gap, x2: item.x + boxWidth / 2, y2: item.y + gap + boxHeight };
+        textAnchor = "middle";
+        textX = item.x;
+        break;
+      case "top-right":
+        box = { x1: item.x + gap * 0.75, y1: item.y - gap - boxHeight * 0.9, x2: item.x + gap * 0.75 + boxWidth, y2: item.y - gap + boxHeight * 0.1 };
+        textAnchor = "start";
+        textX = box.x1 + paddingX;
+        break;
+      case "bottom-right":
+        box = { x1: item.x + gap * 0.75, y1: item.y + gap * 0.25, x2: item.x + gap * 0.75 + boxWidth, y2: item.y + gap * 0.25 + boxHeight };
+        textAnchor = "start";
+        textX = box.x1 + paddingX;
+        break;
+      case "top-left":
+        box = { x1: item.x - gap * 0.75 - boxWidth, y1: item.y - gap - boxHeight * 0.9, x2: item.x - gap * 0.75, y2: item.y - gap + boxHeight * 0.1 };
+        textAnchor = "start";
+        textX = box.x1 + paddingX;
+        break;
+      case "bottom-left":
+        box = { x1: item.x - gap * 0.75 - boxWidth, y1: item.y + gap * 0.25, x2: item.x - gap * 0.75, y2: item.y + gap * 0.25 + boxHeight };
+        textAnchor = "start";
+        textX = box.x1 + paddingX;
+        break;
+      default:
+        return null;
+    }
+
+    const clamped = clampLabelBox(box, bounds);
+    const offsetX = clamped.x1 - box.x1;
+    const offsetY = clamped.y1 - box.y1;
+
+    return {
+      variant,
+      box: clamped,
+      textAnchor,
+      textX: textX + offsetX,
+      textY: item.y + offsetY,
+      boxWidth,
+      boxHeight
+    };
+  }
+
+  function buildLabelVariants(item, mode = "generic") {
+    const rightHeavy = item.x < (item.midX ?? Infinity);
+    const topHeavy = item.y > (item.midY ?? Infinity);
+    if (mode === "region") {
+      return rightHeavy
+        ? (topHeavy ? ["right", "top-right", "bottom-right", "top", "bottom", "left"] : ["right", "bottom-right", "top-right", "bottom", "top", "left"])
+        : (topHeavy ? ["left", "top-left", "bottom-left", "top", "bottom", "right"] : ["left", "bottom-left", "top-left", "bottom", "top", "right"]);
+    }
+    return rightHeavy
+      ? (topHeavy ? ["right", "bottom-right", "top-right", "bottom", "top", "left"] : ["right", "top-right", "bottom-right", "top", "bottom", "left"])
+      : (topHeavy ? ["left", "bottom-left", "top-left", "bottom", "top", "right"] : ["left", "top-left", "bottom-left", "top", "bottom", "right"]);
+  }
+
+  function placeSmartLabels(items, bounds, options = {}) {
+    const mode = options.mode || "generic";
+    const labelBoxes = [];
+    const nodeBoxes = options.nodeBoxes || [];
+    const placed = [];
+
+    items.forEach((item) => {
+      const variants = buildLabelVariants(item, mode);
+      let chosen = null;
+      for (const variant of variants) {
+        const candidate = makeLabelCandidate(item, variant, bounds);
+        if (!candidate) continue;
+        const hitsLabel = labelBoxes.some((box) => boxesOverlap(candidate.box, box, 3));
+        const hitsNode = nodeBoxes.some((box) => boxesOverlap(candidate.box, box, 2));
+        if (!hitsLabel && !hitsNode) {
+          chosen = candidate;
+          break;
+        }
+      }
+      if (!chosen && item.selected) {
+        chosen = makeLabelCandidate(item, variants[0], bounds);
+      }
+      if (!chosen) return;
+      labelBoxes.push(chosen.box);
+      placed.push({ ...item, ...chosen });
+    });
+
+    return placed;
+  }
+
+  function labelGroupHtml(label, className = "chart-label") {
+    const rectX = label.box.x1;
+    const rectY = label.box.y1;
+    const rectWidth = label.box.x2 - label.box.x1;
+    const rectHeight = label.box.y2 - label.box.y1;
+    const lineToX = Math.min(Math.max(label.x, label.box.x1), label.box.x2);
+    const lineToY = Math.min(Math.max(label.y, label.box.y1), label.box.y2);
+    return `
+      <g class="chart-label-group">
+        <line class="chart-pointer" x1="${label.x}" y1="${label.y}" x2="${lineToX}" y2="${lineToY}" />
+        <rect class="chart-label-box" x="${rectX}" y="${rectY}" width="${rectWidth}" height="${rectHeight}" rx="7" ry="7"></rect>
+        <text class="${className}" x="${label.textX}" y="${label.textY}" text-anchor="${label.textAnchor}" dominant-baseline="middle" font-size="${label.fontSize}">${esc(label.text)}</text>
+      </g>
+    `;
+  }
+
   function dominantStageForEntity(entityId) {
     const counts = new Map();
     (txByEntity.get(entityId) || []).forEach((tx) => {
@@ -1023,7 +1188,7 @@
     const svg = byId("regionSvg");
     const stats = byId("regionStats");
     const baseViewport = getSvgViewport(svg, 900, 320);
-    const width = Math.max(baseViewport.width, 920);
+    const width = Math.max(baseViewport.width, 1040);
     const height = Math.max(baseViewport.height, 320);
     const paddingX = clamp(Math.round(width * 0.07), 46, 86);
     const paddingY = clamp(Math.round(height * 0.12), 34, 64);
@@ -1081,33 +1246,63 @@
       `;
     }).join("");
 
-    const labelPoints = [...model.points]
-      .sort((a, b) => Number(b.selected) - Number(a.selected) || b.weight - a.weight)
-      .slice(0, width > 1200 ? 14 : 9);
-
-    const pointHtml = model.points.map((point) => {
+    const pointVisuals = model.points.map((point) => {
       const p = projected.get(point.key);
-      if (!p) return "";
+      if (!p) return null;
       const color = stageColor(point.dominantStage);
       const radius = point.selected ? 8.5 : clamp(4 + point.weight * 0.22, 4.5, 7.5);
-      const label = labelPoints.includes(point)
-        ? `<text class="chart-label" x="${p.x + 12}" y="${p.y - 12}" font-size="${labelFont}">${esc(shortText(point.name, width > 1200 ? 28 : 20))}</text>`
-        : "";
+      return { point, color, radius, p };
+    }).filter(Boolean);
+
+    const labelBounds = {
+      minX: paddingX + 6,
+      minY: paddingY + 6,
+      maxX: width - paddingX - 6,
+      maxY: height - paddingY - 26
+    };
+    const regionLabelCandidates = pointVisuals
+      .slice()
+      .sort((a, b) => Number(b.point.selected) - Number(a.point.selected) || b.point.weight - a.point.weight)
+      .slice(0, width > 1500 ? 18 : width > 1260 ? 14 : 10)
+      .map(({ point, radius, p }) => ({
+        id: point.key,
+        x: p.x,
+        y: p.y,
+        text: shortText(point.name, width > 1400 ? 30 : 22),
+        fontSize: labelFont,
+        nodeRadius: radius + 4,
+        selected: point.selected,
+        midX: width / 2,
+        midY: height / 2
+      }));
+    const regionNodeBoxes = pointVisuals.map(({ radius, p }) => ({
+      x1: p.x - radius - 6,
+      y1: p.y - radius - 6,
+      x2: p.x + radius + 6,
+      y2: p.y + radius + 6
+    }));
+    const regionLabels = placeSmartLabels(regionLabelCandidates, labelBounds, {
+      mode: "region",
+      nodeBoxes: regionNodeBoxes
+    });
+
+    const pointHtml = pointVisuals.map(({ point, color, radius, p }) => {
       return `
         <g class="region-node" data-entity="${esc(point.entityId || "")}">
           <circle cx="${p.x}" cy="${p.y}" r="${radius + 4}" fill="${withAlpha(color, "22")}" />
           <circle cx="${p.x}" cy="${p.y}" r="${radius}" fill="${color}" stroke="${point.selected ? "#ffffff" : "rgba(255,255,255,.32)"}" stroke-width="${point.selected ? 2 : 1.1}" />
           <title>${esc(point.name)}&#10;${esc(displayStage(point.dominantStage))} | ${esc(displayCountry(point.country))}&#10;${esc(safeText(point.place, "未标注地点"))}</title>
-          ${label}
         </g>
       `;
     }).join("");
+    const labelHtml = regionLabels.map((label) => labelGroupHtml(label)).join("");
 
     svg.innerHTML = `
       <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(3,9,17,.34)"></rect>
       ${gridLines.join("")}
       ${linkHtml}
       ${pointHtml}
+      ${labelHtml}
       <text class="chart-sub-label" x="${paddingX}" y="${height - 14}" font-size="${metaFont}">说明：点击节点查看实体，点击连线查看关系证据。</text>
     `;
   }
@@ -1176,8 +1371,9 @@
     const model = buildChainModel(context);
     const svg = byId("chainSvg");
     const baseViewport = getSvgViewport(svg, 980, 320);
-    const width = Math.max(baseViewport.width, 1320);
-    const height = Math.max(baseViewport.height, 320);
+    const maxStageNodes = Math.max(...model.stages.map((stage) => model.nodes.filter((node) => node.stage === stage).length), 1);
+    const width = Math.max(baseViewport.width, Math.max(1420, model.stages.length * 150 + 240));
+    const height = Math.max(baseViewport.height, Math.min(520, 248 + maxStageNodes * 38));
     const stageFont = clamp(Math.round(height * 0.05), 12, 16);
     const nodeFont = clamp(Math.round(height * 0.04), 11, 14);
     const metaFont = clamp(Math.round(height * 0.034), 10, 12);
@@ -1193,7 +1389,7 @@
 
     const stageNodes = new Map();
     model.stages.forEach((stage) => stageNodes.set(stage, model.nodes.filter((node) => node.stage === stage)));
-    const xPadding = 92;
+    const xPadding = 96;
     const top = 92;
     const bottom = 78;
     const stageStep = model.stages.length > 1 ? (width - xPadding * 2) / (model.stages.length - 1) : 0;
@@ -1241,18 +1437,67 @@
       `;
     }).join("");
 
-    const nodeHtml = [...positioned.values()].map((node) => {
+    const positionedNodes = [...positioned.values()];
+    const chainLabelBounds = {
+      minX: 18,
+      minY: 48,
+      maxX: width - 18,
+      maxY: height - 20
+    };
+    const chainNodeBoxes = positionedNodes.map((node) => ({
+      x1: node.x - 18,
+      y1: node.y - 18,
+      x2: node.x + 18,
+      y2: node.y + 18
+    }));
+    const stageLabelRanks = new Map();
+    positionedNodes.forEach((node) => {
+      const list = stageLabelRanks.get(node.stage) || [];
+      list.push(node);
+      stageLabelRanks.set(node.stage, list);
+    });
+    stageLabelRanks.forEach((list, stage) => {
+      list.sort((a, b) => Number(b.selected) - Number(a.selected) || b.count - a.count || a.name.localeCompare(b.name));
+      list.forEach((node, index) => {
+        node.stageRank = index;
+        node.stageSize = list.length;
+      });
+    });
+    const chainLabelCandidates = positionedNodes
+      .filter((node) => node.selected || node.count > 1 || node.stageRank < 2)
+      .sort((a, b) => Number(b.selected) - Number(a.selected) || b.count - a.count || a.stageRank - b.stageRank)
+      .slice(0, width > 1700 ? 28 : width > 1450 ? 22 : 16)
+      .map((node) => ({
+        id: node.graphKey,
+        x: node.x,
+        y: node.y,
+        text: shortText(node.name, width > 1500 ? 22 : 18),
+        fontSize: nodeFont,
+        nodeRadius: node.selected ? 17 : 15,
+        selected: node.selected,
+        midX: width / 2,
+        midY: height / 2
+      }));
+    const chainLabels = placeSmartLabels(chainLabelCandidates, chainLabelBounds, {
+      mode: "chain",
+      nodeBoxes: chainNodeBoxes
+    });
+
+    const nodeHtml = positionedNodes.map((node) => {
       const color = stageColor(node.stage);
+      const countText = (node.selected || node.count > 1)
+        ? `<text class="chart-sub-label" x="${node.x}" y="${node.y + 31}" text-anchor="middle" font-size="${metaFont}">${fmt.format(node.count)} 条</text>`
+        : "";
       return `
         <g class="chain-node" data-entity="${esc(node.entityId || "")}">
           <circle cx="${node.x}" cy="${node.y}" r="${node.selected ? 17 : 15}" fill="${withAlpha(color, "22")}" stroke="${color}" stroke-width="1.2"></circle>
           <circle cx="${node.x}" cy="${node.y}" r="${node.selected ? 7.5 : 6.2}" fill="${color}" stroke="${node.selected ? "#fff" : "none"}" stroke-width="1.6"></circle>
-          <text class="chart-label" x="${node.x}" y="${node.y - 24}" text-anchor="middle" font-size="${nodeFont}">${esc(shortText(node.name, 18))}</text>
-          <text class="chart-sub-label" x="${node.x}" y="${node.y + 31}" text-anchor="middle" font-size="${metaFont}">${fmt.format(node.count)} 条</text>
+          ${countText}
           <title>${esc(node.name)}&#10;${esc(displayStage(node.stage))} | ${esc(displayCountry(node.country))}&#10;${esc(safeText(node.place, "未标注地点"))}</title>
         </g>
       `;
     }).join("");
+    const chainLabelHtml = chainLabels.map((label) => labelGroupHtml(label)).join("");
 
     byId("chainMeta").textContent = context.entity
       ? `围绕 ${context.entity.name} 展开的多类别节点关系`
@@ -1263,6 +1508,7 @@
       ${stageGuides}
       ${edgeHtml}
       ${nodeHtml}
+      ${chainLabelHtml}
       <text class="chart-sub-label" x="${xPadding}" y="${height - 12}" font-size="${metaFont}">说明：颜色表示环节类别；点击节点或连线可在右侧与证据链中联动。</text>
     `;
   }
