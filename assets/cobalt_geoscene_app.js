@@ -1309,6 +1309,15 @@
     };
   }
 
+  function projectRegionPointToBox(point, bounds, box) {
+    const lonSpan = Math.max(1, bounds.maxLon - bounds.minLon);
+    const latSpan = Math.max(1, bounds.maxLat - bounds.minLat);
+    return {
+      x: box.left + ((point.lon - bounds.minLon) / lonSpan) * Math.max(1, box.right - box.left),
+      y: box.bottom - ((point.lat - bounds.minLat) / latSpan) * Math.max(1, box.bottom - box.top)
+    };
+  }
+
   function buildRegionModel(context) {
     const sourceTxs = context.mode === "entity" || context.mode === "transaction"
       ? context.focus
@@ -1353,16 +1362,125 @@
     return { points, links };
   }
 
+  function buildRegionLabelLayout(points, projected, width, height, paddingX, paddingY, plotBox, labelFont) {
+    const crowdRadius = width > 1500 ? 40 : (width > 1200 ? 34 : 28);
+    const crowdRadiusSq = crowdRadius * crowdRadius;
+    const crowdData = points.map((point, index) => {
+      const p = projected.get(point.key);
+      let crowd = 0;
+      points.forEach((other) => {
+        if (other.key === point.key) return;
+        const o = projected.get(other.key);
+        if (!o) return;
+        const dx = p.x - o.x;
+        const dy = p.y - o.y;
+        if ((dx * dx) + (dy * dy) <= crowdRadiusSq) crowd += 1;
+      });
+      return { ...point, p, crowd, index };
+    });
+
+    const labelLimit = width > 1500 ? 14 : (width > 1200 ? 12 : 9);
+    const prioritized = crowdData
+      .sort((a, b) =>
+        Number(b.selected) - Number(a.selected)
+        || Number(b.crowd >= 2) - Number(a.crowd >= 2)
+        || b.weight - a.weight
+        || a.name.localeCompare(b.name, "en")
+      );
+
+    const chosen = [];
+    prioritized.forEach((point) => {
+      if (chosen.length >= labelLimit) return;
+      if (point.selected || point.crowd >= 2 || point.weight >= 2.6) chosen.push(point);
+    });
+    prioritized.forEach((point) => {
+      if (chosen.length >= labelLimit) return;
+      if (chosen.some((item) => item.key === point.key)) return;
+      chosen.push(point);
+    });
+
+    const centerX = (plotBox.left + plotBox.right) / 2;
+    const centerY = (plotBox.top + plotBox.bottom) / 2;
+    const buckets = { left: [], right: [] };
+
+    chosen.forEach((point, order) => {
+      let side = point.p.x >= centerX ? "right" : "left";
+      if (Math.abs(point.p.x - centerX) < 42) side = order % 2 === 0 ? "right" : "left";
+      const crowded = point.crowd >= 2;
+      const labelText = shortText(point.chainName || point.name, width > 1400 ? 30 : 24);
+      const chipWidth = clamp(Math.round(labelText.length * labelFont * 0.62 + 22), 92, width > 1400 ? 270 : 228);
+      const textX = side === "right" ? plotBox.right + 34 : plotBox.left - 34;
+      const rectX = side === "right" ? textX - 10 : textX - chipWidth + 10;
+      const lineEndX = side === "right" ? rectX - 10 : rectX + chipWidth + 10;
+      const desiredY = clamp(
+        point.p.y + (crowded ? (point.p.y < centerY ? -22 : 22) : (order % 2 === 0 ? -16 : 16)),
+        paddingY + 18,
+        height - paddingY - 12
+      );
+      buckets[side].push({
+        ...point,
+        crowded,
+        side,
+        textX,
+        rectX,
+        chipWidth,
+        lineEndX,
+        labelText,
+        desiredY
+      });
+    });
+
+    const layout = new Map();
+    ["left", "right"].forEach((side) => {
+      const bucket = buckets[side];
+      if (!bucket.length) return;
+      const minGap = width > 1500 ? 20 : 18;
+      const minY = paddingY + 18;
+      const maxY = height - paddingY - 12;
+      bucket.sort((a, b) => a.desiredY - b.desiredY);
+      let previousY = minY - minGap;
+      bucket.forEach((item) => {
+        item.labelY = Math.max(item.desiredY, previousY + minGap);
+        previousY = item.labelY;
+      });
+      const overflow = bucket[bucket.length - 1].labelY - maxY;
+      if (overflow > 0) {
+        for (let i = bucket.length - 1; i >= 0; i -= 1) {
+          bucket[i].labelY -= overflow;
+          if (i < bucket.length - 1 && bucket[i].labelY > bucket[i + 1].labelY - minGap) {
+            bucket[i].labelY = bucket[i + 1].labelY - minGap;
+          }
+        }
+      }
+      bucket.forEach((item) => {
+        item.labelY = clamp(item.labelY, minY, maxY);
+        layout.set(item.key, {
+          crowded: item.crowded,
+          text: item.labelText,
+          textX: item.textX,
+          rectX: item.rectX,
+          rectWidth: item.chipWidth,
+          lineEndX: item.lineEndX,
+          bendX: item.side === "right" ? plotBox.right + 10 : plotBox.left - 10,
+          labelY: item.labelY,
+          anchor: side === "right" ? "start" : "end"
+        });
+      });
+    });
+
+    return layout;
+  }
+
   function renderRegion(context) {
     const model = buildRegionModel(context);
     const svg = byId("regionSvg");
     const stats = byId("regionStats");
-    const baseViewport = getSvgViewport(svg, 900, 320);
-    const width = Math.max(baseViewport.width, 920);
-    const height = Math.max(baseViewport.height, 320);
-    const paddingX = clamp(Math.round(width * 0.07), 46, 86);
-    const paddingY = clamp(Math.round(height * 0.12), 34, 64);
-    const labelFont = clamp(Math.round(height * 0.042), 12, 16);
+    const baseViewport = getSvgViewport(svg, 1260, 520);
+    const width = Math.max(baseViewport.width, 1280);
+    const height = Math.max(baseViewport.height, 520);
+    const paddingX = clamp(Math.round(width * 0.07), 54, 96);
+    const paddingY = clamp(Math.round(height * 0.12), 42, 78);
+    const labelFont = clamp(Math.round(height * 0.034), 12, 17);
     const metaFont = clamp(Math.round(height * 0.032), 10, 13);
     svg.style.width = `${width}px`;
     svg.style.height = `${height}px`;
@@ -1378,7 +1496,14 @@
     const bounds = boundsFromPoints(model.points);
     const countries = new Set(model.points.map((point) => displayCountry(point.country)).filter(Boolean));
     const stageSet = new Set(model.points.map((point) => point.dominantStage).filter(Boolean));
-    const projected = new Map(model.points.map((point) => [point.key, projectRegionPoint(point, bounds, width, height, paddingX, paddingY)]));
+    const plotBox = {
+      left: paddingX + clamp(Math.round(width * 0.06), 82, 126),
+      right: width - paddingX - clamp(Math.round(width * 0.13), 180, 262),
+      top: paddingY + 8,
+      bottom: height - paddingY - 20
+    };
+    const projected = new Map(model.points.map((point) => [point.key, projectRegionPointToBox(point, bounds, plotBox)]));
+    const labelLayout = buildRegionLabelLayout(model.points, projected, width, height, paddingX, paddingY, plotBox, labelFont);
 
     byId("regionMeta").textContent = context.mode === "camera" ? "当前视角对应的地理窗口" : "当前焦点下的真实坐标投影";
     byId("regionCaption").textContent = `纬度 ${bounds.minLat.toFixed(1)}° 至 ${bounds.maxLat.toFixed(1)}°，经度 ${bounds.minLon.toFixed(1)}° 至 ${bounds.maxLon.toFixed(1)}°；共 ${fmt.format(model.points.length)} 个落点、${fmt.format(model.links.length)} 条关系。`;
@@ -1390,10 +1515,10 @@
 
     const gridLines = [];
     for (let i = 0; i <= 4; i += 1) {
-      const x = paddingX + (i / 4) * (width - paddingX * 2);
-      const y = paddingY + (i / 4) * (height - paddingY * 2);
-      gridLines.push(`<line class="region-grid-line" x1="${x}" y1="${paddingY}" x2="${x}" y2="${height - paddingY}" />`);
-      gridLines.push(`<line class="region-grid-line" x1="${paddingX}" y1="${y}" x2="${width - paddingX}" y2="${y}" />`);
+      const x = plotBox.left + (i / 4) * (plotBox.right - plotBox.left);
+      const y = plotBox.top + (i / 4) * (plotBox.bottom - plotBox.top);
+      gridLines.push(`<line class="region-grid-line" x1="${x}" y1="${plotBox.top}" x2="${x}" y2="${plotBox.bottom}" />`);
+      gridLines.push(`<line class="region-grid-line" x1="${plotBox.left}" y1="${y}" x2="${plotBox.right}" y2="${y}" />`);
     }
 
     const linkHtml = model.links.map((link) => {
@@ -1411,37 +1536,51 @@
           stroke-width="${widthValue}"
           stroke-opacity="${link.selected ? 0.96 : 0.48}"
         >
-          <title>${esc(entityTitle(link.source.entityId, link.source.name))} → ${esc(entityTitle(link.target.entityId, link.target.name))}&#10;${esc(displayStage(link.source.stage))} → ${esc(displayStage(link.target.stage))}</title>
+          <title>${esc(entityTitle(link.source.entityId, link.source.chainName || link.source.name))} → ${esc(entityTitle(link.target.entityId, link.target.chainName || link.target.name))}&#10;${esc(displayStage(link.source.stage))} → ${esc(displayStage(link.target.stage))}</title>
         </path>
       `;
     }).join("");
-
-    const labelPoints = [...model.points]
-      .sort((a, b) => Number(b.selected) - Number(a.selected) || b.weight - a.weight)
-      .slice(0, width > 1200 ? 14 : 9);
 
     const pointHtml = model.points.map((point, index) => {
       const p = projected.get(point.key);
       if (!p) return "";
       const color = stageColor(point.dominantStage);
       const radius = point.selected ? 8.5 : clamp(4 + point.weight * 0.22, 4.5, 7.5);
-      const showLabel = labelPoints.includes(point);
-      const dx = showLabel ? (index % 2 === 0 ? 14 : -14) : 0;
-      const dy = showLabel ? (index % 3 === 0 ? -16 : 18) : 0;
-      const labelX = clamp(p.x + dx, 18, width - 18);
-      const labelY = clamp(p.y + dy, 20, height - 12);
-      const anchor = dx < 0 ? "end" : "start";
-      const label = showLabel
+      const labelInfo = labelLayout.get(point.key);
+      const label = labelInfo
         ? `
-          <line x1="${p.x}" y1="${p.y}" x2="${labelX}" y2="${labelY - 4}" stroke="${withAlpha(color, "88")}" stroke-width="1" />
-          <text class="chart-label" x="${labelX}" y="${labelY}" text-anchor="${anchor}" font-size="${labelFont}">${esc(shortText(point.name, width > 1200 ? 28 : 20))}</text>
+          <rect
+            class="region-label-chip"
+            x="${labelInfo.rectX}"
+            y="${labelInfo.labelY - labelFont + 3}"
+            width="${labelInfo.rectWidth}"
+            height="${labelFont + 10}"
+            rx="8"
+          />
+          <line
+            class="region-label-line${labelInfo.crowded ? " is-crowded" : ""}"
+            x1="${p.x}"
+            y1="${p.y}"
+            x2="${labelInfo.bendX}"
+            y2="${p.y}"
+          />
+          <line
+            class="region-label-line${labelInfo.crowded ? " is-crowded" : ""}"
+            x1="${labelInfo.bendX}"
+            y1="${p.y}"
+            x2="${labelInfo.lineEndX}"
+            y2="${labelInfo.labelY - 5}"
+            stroke="${withAlpha(color, labelInfo.crowded ? "b0" : "82")}"
+            stroke-width="${labelInfo.crowded ? 1.1 : 0.9}"
+          />
+          <text class="chart-label region-point-label" x="${labelInfo.textX}" y="${labelInfo.labelY}" text-anchor="${labelInfo.anchor}" font-size="${labelFont}">${esc(labelInfo.text)}</text>
         `
         : "";
       return `
         <g class="region-node" data-entity="${esc(point.entityId || "")}">
           <circle cx="${p.x}" cy="${p.y}" r="${radius + 4}" fill="${withAlpha(color, "22")}" />
           <circle cx="${p.x}" cy="${p.y}" r="${radius}" fill="${color}" stroke="${point.selected ? "#ffffff" : "rgba(255,255,255,.32)"}" stroke-width="${point.selected ? 2 : 1.1}" />
-          <title>${esc(point.name)}&#10;${esc(displayStage(point.dominantStage))} | ${esc(displayCountry(point.country))}&#10;${esc(safeText(point.place, "未标注地点"))}</title>
+          <title>${esc(point.chainName || point.name)}&#10;${esc(displayStage(point.dominantStage))} | ${esc(displayCountry(point.country))}&#10;${esc(safeText(point.place, "未标注地点"))}</title>
           ${label}
         </g>
       `;
@@ -1449,6 +1588,7 @@
 
     svg.innerHTML = `
       <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(3,9,17,.34)"></rect>
+      <rect x="${plotBox.left}" y="${plotBox.top}" width="${plotBox.right - plotBox.left}" height="${plotBox.bottom - plotBox.top}" rx="18" fill="rgba(5, 12, 22, .26)" stroke="rgba(110,198,255,.08)" stroke-width="1"></rect>
       ${gridLines.join("")}
       ${linkHtml}
       ${pointHtml}

@@ -346,8 +346,8 @@ body.globe-ready #earthFallback {
   left: 50%;
   top: 50%;
   z-index: 7;
-  width: min(78vw, 1080px);
-  height: min(66vh, 760px);
+  width: min(90vw, 1680px);
+  height: min(82vh, 980px);
   transform: translate(-50%, -50%);
 }
 
@@ -358,7 +358,28 @@ body.globe-ready #earthFallback {
 }
 
 .region-body .graph-scroll {
-  min-height: 320px;
+  min-height: 560px;
+}
+
+.region-label-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 2.5 4.5;
+  opacity: 0.9;
+}
+
+.region-label-line.is-crowded {
+  stroke-dasharray: 2 3.5;
+}
+
+.region-label-chip {
+  fill: rgba(6, 15, 27, 0.82);
+  stroke: rgba(122, 190, 255, 0.14);
+  stroke-width: 1;
+}
+
+.region-point-label {
+  font-weight: 700;
 }
 
 .hierarchy-panel .panel-body {
