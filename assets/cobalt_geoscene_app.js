@@ -284,11 +284,13 @@
     globeMode: "pending",
     pointerX: 0,
     pointerY: 0,
-    suppressViewSync: false
+    suppressViewSync: false,
+    regionHoverKey: ""
   };
 
   let globe = null;
   let viewSyncTimer = 0;
+  let regionHoverModel = { plotBox: null, points: [] };
 
   function displayStage(stage) {
     return STAGE_LABELS[stage] || safeText(stage);
@@ -1074,12 +1076,52 @@
     if (!modal || !backdrop) return;
     const visible = Boolean(open);
     state.regionOpen = visible;
+    if (!visible) state.regionHoverKey = "";
     modal.classList.toggle("is-hidden", !visible);
     backdrop.classList.toggle("is-hidden", !visible);
     modal.setAttribute("aria-hidden", visible ? "false" : "true");
     if (visible) {
       window.requestAnimationFrame(() => renderRegion(computeContext()));
     }
+  }
+
+  function setRegionHover(regionKey = "") {
+    const nextKey = String(regionKey || "");
+    if (state.regionHoverKey === nextKey) return;
+    state.regionHoverKey = nextKey;
+    if (!state.regionOpen) return;
+    window.requestAnimationFrame(() => renderRegion(computeContext()));
+  }
+
+  function regionHoverKeyFromPointer(event) {
+    const labelKey = event.target.closest?.(".region-label-item[data-region-key]")?.dataset?.regionKey;
+    if (labelKey) return labelKey;
+    const directKey = event.target.closest?.("[data-region-key]")?.dataset?.regionKey || "";
+
+    const svg = event.currentTarget;
+    const plotBox = regionHoverModel.plotBox;
+    if (!svg || !plotBox || !regionHoverModel.points.length) return directKey;
+
+    const rect = svg.getBoundingClientRect();
+    const viewBox = svg.viewBox?.baseVal;
+    if (!rect.width || !rect.height || !viewBox?.width || !viewBox?.height) return directKey;
+
+    const x = (event.clientX - rect.left) * (viewBox.width / rect.width);
+    const y = (event.clientY - rect.top) * (viewBox.height / rect.height);
+    if (x < plotBox.left - 12 || x > plotBox.right + 12 || y < plotBox.top - 12 || y > plotBox.bottom + 12) return directKey;
+
+    let best = null;
+    regionHoverModel.points.forEach((point) => {
+      const dx = x - point.x;
+      const dy = y - point.y;
+      const distanceSq = (dx * dx) + (dy * dy);
+      if (distanceSq > point.hitRadius * point.hitRadius) return;
+      if (!best || distanceSq < best.distanceSq || (distanceSq === best.distanceSq && point.priority > best.priority)) {
+        best = { key: point.key, distanceSq, priority: point.priority };
+      }
+    });
+
+    return best?.key || directKey;
   }
 
   function buildEvidenceProfile(entity, related) {
@@ -1417,48 +1459,57 @@
       headerHeight: 28
     };
     const innerPad = 12;
-    const colGap = 10;
-    const columns = 1;
     const itemHeight = labelFont + 12;
-    const rowGap = 10;
-    const columnWidth = Math.floor(
-      (panel.right - panel.left - innerPad * 2 - colGap * (columns - 1)) / columns
-    );
-    const rows = Math.ceil(uniqueChosen.length / columns);
+    const rowGap = 8;
+    const columnWidth = Math.floor(panel.right - panel.left - innerPad * 2);
     const layout = new Map();
+    const headers = [];
 
-    uniqueChosen
+    const sortedChosen = uniqueChosen
       .sort((a, b) =>
         Number(b.selected) - Number(a.selected)
         || stageOrder.indexOf(a.dominantStage) - stageOrder.indexOf(b.dominantStage)
         || b.weight - a.weight
         || a.name.localeCompare(b.name, "en")
-      )
-      .forEach((item, index) => {
-        const column = columns === 1 ? 0 : Math.floor(index / rows);
-        const row = columns === 1 ? index : index % rows;
-        const rectX = panel.left + innerPad + column * (columnWidth + colGap);
-        const rectY = panel.top + panel.headerHeight + 10 + row * (itemHeight + rowGap);
-        const labelY = rectY + itemHeight / 2 + 4;
-        layout.set(item.key, {
-          crowded: item.crowd >= 2,
-          text: shortText(item.chainName || item.name, width > 1400 ? 28 : 22),
-          textX: rectX + 18,
-          rectX,
-          rectY,
-          rectWidth: columnWidth,
-          rectHeight: itemHeight,
-          lineEndX: rectX - 8,
-          bendX: plotBox.right + 10 + column * 6,
-          labelY,
-          anchor: "start",
-          dotX: rectX + 10,
-          dotY: rectY + itemHeight / 2,
-          color: stageColor(item.dominantStage)
-        });
-      });
+      );
 
-    return { layout, panel, count: chosen.length };
+    let cursorY = panel.top + panel.headerHeight + 10;
+    let lastStage = "";
+    sortedChosen.forEach((item) => {
+      if (item.dominantStage !== lastStage) {
+        if (lastStage) cursorY += 6;
+        headers.push({
+          stage: item.dominantStage,
+          x: panel.left + innerPad,
+          y: cursorY + 12
+        });
+        cursorY += 22;
+        lastStage = item.dominantStage;
+      }
+      const rectX = panel.left + innerPad;
+      const rectY = cursorY;
+      const labelY = rectY + itemHeight / 2 + 4;
+      layout.set(item.key, {
+        crowded: item.crowd >= 2,
+        text: shortText(item.chainName || item.name, width > 1400 ? 28 : 22),
+        textX: rectX + 18,
+        rectX,
+        rectY,
+        rectWidth: columnWidth,
+        rectHeight: itemHeight,
+        lineEndX: rectX - 8,
+        bendX: plotBox.right + 10,
+        labelY,
+        anchor: "start",
+        dotX: rectX + 10,
+        dotY: rectY + itemHeight / 2,
+        color: stageColor(item.dominantStage),
+        stage: item.dominantStage
+      });
+      cursorY += itemHeight + rowGap;
+    });
+
+    return { layout, panel, count: uniqueChosen.length, headers };
   }
 
   function renderRegion(context) {
@@ -1477,6 +1528,7 @@
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
     if (!model.points.length) {
+      regionHoverModel = { plotBox: null, points: [] };
       byId("regionCaption").textContent = "当前视角内没有可投影到局部区域的落点。";
       stats.innerHTML = "";
       svg.innerHTML = `<foreignObject x="18" y="20" width="${width - 36}" height="${Math.max(180, height - 40)}"><div xmlns="http://www.w3.org/1999/xhtml" class="empty-state">请拖动地球到有节点的区域，或点击企业/关系后查看局部区域映射。</div></foreignObject>`;
@@ -1496,6 +1548,25 @@
     const regionLabels = buildRegionLabelLayout(model.points, projected, width, height, paddingX, paddingY, plotBox, labelFont);
     const labelLayout = regionLabels.layout;
     const labelPanel = regionLabels.panel;
+    const hoverKey = state.regionHoverKey;
+    regionHoverModel = {
+      plotBox: { ...plotBox },
+      points: model.points.map((point) => {
+        const p = projected.get(point.key);
+        if (!p) return null;
+        const radius = point.selected ? 8.5 : clamp(4 + point.weight * 0.22, 4.5, 7.5);
+        return {
+          key: point.key,
+          x: p.x,
+          y: p.y,
+          hitRadius: Math.max(radius + (labelLayout.has(point.key) ? 8 : 6), labelLayout.has(point.key) ? 13 : 11),
+          priority: (labelLayout.has(point.key) ? 2 : 0) + (point.selected ? 1 : 0) + Math.min(point.weight, 3)
+        };
+      }).filter(Boolean)
+    };
+    const panelHeaderHtml = (regionLabels.headers || []).map((item) => `
+      <text class="chart-sub-label region-panel-stage" x="${item.x}" y="${item.y}" font-size="${metaFont}">${esc(displayStage(item.stage))}</text>
+    `).join("");
 
     byId("regionMeta").textContent = context.mode === "camera" ? "当前视角对应的地理窗口" : "当前焦点下的真实坐标投影";
     byId("regionCaption").textContent = `纬度 ${bounds.minLat.toFixed(1)}° 至 ${bounds.maxLat.toFixed(1)}°，经度 ${bounds.minLon.toFixed(1)}° 至 ${bounds.maxLon.toFixed(1)}°；共 ${fmt.format(model.points.length)} 个落点、${fmt.format(model.links.length)} 条关系。`;
@@ -1518,61 +1589,83 @@
       const target = projected.get(link.target.key);
       if (!source || !target) return "";
       const color = stageColor(link.source.stage);
-      const widthValue = link.selected ? 3.8 : clamp(1.2 + (link.tx.sourceCount || 0) * 0.2, 1.2, 3);
+      const relatedToHover = hoverKey && (link.source.key === hoverKey || link.target.key === hoverKey);
+      const widthValue = hoverKey
+        ? (relatedToHover ? Math.max(link.selected ? 3.8 : clamp(1.2 + (link.tx.sourceCount || 0) * 0.2, 1.2, 3), 2.8) : 1)
+        : (link.selected ? 3.8 : clamp(1.2 + (link.tx.sourceCount || 0) * 0.2, 1.2, 3));
+      const strokeOpacity = hoverKey
+        ? (relatedToHover ? (link.selected ? 1 : 0.96) : 0.08)
+        : (link.selected ? 0.96 : 0.48);
       return `
         <path
-          class="chain-edge"
+          class="chain-edge${relatedToHover ? " is-active" : ""}"
           data-tx="${esc(link.id)}"
           d="M ${source.x} ${source.y} L ${target.x} ${target.y}"
           stroke="${color}"
           stroke-width="${widthValue}"
-          stroke-opacity="${link.selected ? 0.96 : 0.48}"
+          stroke-opacity="${strokeOpacity}"
         >
           <title>${esc(entityTitle(link.source.entityId, link.source.chainName || link.source.name))} → ${esc(entityTitle(link.target.entityId, link.target.chainName || link.target.name))}&#10;${esc(displayStage(link.source.stage))} → ${esc(displayStage(link.target.stage))}</title>
         </path>
       `;
     }).join("");
 
-    const pointHtml = model.points.map((point, index) => {
+    const orderedPoints = [...model.points].sort((a, b) =>
+      Number(Boolean(a.key === hoverKey)) - Number(Boolean(b.key === hoverKey))
+      || Number(Boolean(labelLayout.has(a.key))) - Number(Boolean(labelLayout.has(b.key)))
+      || Number(Boolean(a.selected)) - Number(Boolean(b.selected))
+      || a.weight - b.weight
+    );
+
+    const pointHtml = orderedPoints.map((point) => {
       const p = projected.get(point.key);
       if (!p) return "";
       const color = stageColor(point.dominantStage);
+      const isActive = Boolean(hoverKey && point.key === hoverKey);
+      const dimmed = Boolean(hoverKey && !isActive);
       const radius = point.selected ? 8.5 : clamp(4 + point.weight * 0.22, 4.5, 7.5);
       const labelInfo = labelLayout.get(point.key);
       const label = labelInfo
         ? `
-          <rect
-            class="region-label-chip"
-            x="${labelInfo.rectX}"
-            y="${labelInfo.rectY}"
-            width="${labelInfo.rectWidth}"
-            height="${labelInfo.rectHeight}"
-            rx="8"
-          />
-          <circle cx="${labelInfo.dotX}" cy="${labelInfo.dotY}" r="4" fill="${labelInfo.color}" />
-          <line
-            class="region-label-line${labelInfo.crowded ? " is-crowded" : ""}"
-            x1="${p.x}"
-            y1="${p.y}"
-            x2="${labelInfo.bendX}"
-            y2="${p.y}"
-          />
-          <line
-            class="region-label-line${labelInfo.crowded ? " is-crowded" : ""}"
-            x1="${labelInfo.bendX}"
-            y1="${p.y}"
-            x2="${labelInfo.lineEndX}"
-            y2="${labelInfo.labelY - 5}"
-            stroke="${withAlpha(color, labelInfo.crowded ? "b0" : "82")}"
-            stroke-width="${labelInfo.crowded ? 1.1 : 0.9}"
-          />
-          <text class="chart-label region-point-label" x="${labelInfo.textX}" y="${labelInfo.labelY}" text-anchor="${labelInfo.anchor}" font-size="${labelFont}">${esc(labelInfo.text)}</text>
+          <g class="region-label-item${isActive ? " is-active" : ""}" data-entity="${esc(point.entityId || "")}" data-region-key="${esc(point.key)}" opacity="${dimmed ? 0.24 : 1}">
+            <rect
+              class="region-label-chip"
+              x="${labelInfo.rectX}"
+              y="${labelInfo.rectY}"
+              width="${labelInfo.rectWidth}"
+              height="${labelInfo.rectHeight}"
+              rx="8"
+              stroke-width="${isActive ? 1.6 : 1}"
+              stroke="${isActive ? withAlpha(color, "e8") : "rgba(122, 190, 255, 0.14)"}"
+              fill="${isActive ? "rgba(14, 37, 62, 0.98)" : "rgba(6, 15, 27, 0.82)"}"
+            />
+            <circle cx="${labelInfo.dotX}" cy="${labelInfo.dotY}" r="${isActive ? 5.2 : 4}" fill="${labelInfo.color}" stroke="${isActive ? "#ffffff" : "none"}" stroke-width="${isActive ? 1.2 : 0}" />
+            <line
+              class="region-label-line${labelInfo.crowded ? " is-crowded" : ""}"
+              x1="${p.x}"
+              y1="${p.y}"
+              x2="${labelInfo.bendX}"
+              y2="${p.y}"
+              stroke="${withAlpha(color, isActive ? "f0" : "76")}"
+              stroke-width="${isActive ? 1.5 : 0.9}"
+            />
+            <line
+              class="region-label-line${labelInfo.crowded ? " is-crowded" : ""}"
+              x1="${labelInfo.bendX}"
+              y1="${p.y}"
+              x2="${labelInfo.lineEndX}"
+              y2="${labelInfo.labelY - 5}"
+              stroke="${withAlpha(color, isActive ? "f0" : (labelInfo.crowded ? "a8" : "76"))}"
+              stroke-width="${isActive ? 1.5 : (labelInfo.crowded ? 1.05 : 0.88)}"
+            />
+            <text class="chart-label region-point-label" x="${labelInfo.textX}" y="${labelInfo.labelY}" text-anchor="${labelInfo.anchor}" font-size="${labelFont}" fill="${isActive ? "#f4fbff" : "#e4f3ff"}">${esc(labelInfo.text)}</text>
+          </g>
         `
         : "";
       return `
-        <g class="region-node" data-entity="${esc(point.entityId || "")}">
-          <circle cx="${p.x}" cy="${p.y}" r="${radius + 4}" fill="${withAlpha(color, "22")}" />
-          <circle cx="${p.x}" cy="${p.y}" r="${radius}" fill="${color}" stroke="${point.selected ? "#ffffff" : "rgba(255,255,255,.32)"}" stroke-width="${point.selected ? 2 : 1.1}" />
+        <g class="region-node${isActive ? " is-active" : ""}" data-entity="${esc(point.entityId || "")}" data-region-key="${esc(point.key)}" opacity="${dimmed ? 0.22 : 1}">
+          <circle cx="${p.x}" cy="${p.y}" r="${radius + (isActive ? 7 : 4)}" fill="${withAlpha(color, isActive ? "40" : "1f")}" />
+          <circle cx="${p.x}" cy="${p.y}" r="${isActive ? radius + 1.35 : radius}" fill="${color}" stroke="${isActive ? "#ffffff" : (point.selected ? "#ffffff" : "rgba(255,255,255,.32)")}" stroke-width="${isActive ? 2.8 : (point.selected ? 2 : 1.1)}" />
           <title>${esc(point.chainName || point.name)}&#10;${esc(displayStage(point.dominantStage))} | ${esc(displayCountry(point.country))}&#10;${esc(safeText(point.place, "未标注地点"))}</title>
           ${label}
         </g>
@@ -1584,6 +1677,7 @@
       <rect x="${plotBox.left}" y="${plotBox.top}" width="${plotBox.right - plotBox.left}" height="${plotBox.bottom - plotBox.top}" rx="18" fill="rgba(5, 12, 22, .26)" stroke="rgba(110,198,255,.08)" stroke-width="1"></rect>
       <rect x="${labelPanel.left}" y="${labelPanel.top}" width="${labelPanel.right - labelPanel.left}" height="${labelPanel.bottom - labelPanel.top}" rx="16" fill="rgba(5, 12, 22, .18)" stroke="rgba(110,198,255,.08)" stroke-width="1"></rect>
       <text class="chart-sub-label" x="${labelPanel.left + 14}" y="${labelPanel.top + 20}" font-size="${metaFont}">重点实体标签 ${fmt.format(regionLabels.count)}</text>
+      ${panelHeaderHtml}
       ${gridLines.join("")}
       ${linkHtml}
       ${pointHtml}
@@ -2327,6 +2421,17 @@
     }
     const entityNode = event.target.closest("[data-entity]");
     if (entityNode && entityNode.dataset.entity) selectEntity(entityNode.dataset.entity);
+  });
+
+  const regionHoverHandler = (event) => {
+    setRegionHover(regionHoverKeyFromPointer(event));
+  };
+
+  byId("regionSvg").addEventListener("mouseover", regionHoverHandler);
+  byId("regionSvg").addEventListener("mousemove", regionHoverHandler);
+
+  byId("regionSvg").addEventListener("mouseleave", () => {
+    setRegionHover("");
   });
 
   byId("chainSvg").addEventListener("click", (event) => {

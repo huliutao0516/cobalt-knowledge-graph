@@ -366,6 +366,8 @@ body.globe-ready #earthFallback {
   stroke-linecap: round;
   stroke-dasharray: 2.5 4.5;
   opacity: 0.9;
+  transition: stroke 0.18s ease, stroke-width 0.18s ease, opacity 0.18s ease;
+  pointer-events: none;
 }
 
 .region-label-line.is-crowded {
@@ -376,10 +378,33 @@ body.globe-ready #earthFallback {
   fill: rgba(6, 15, 27, 0.82);
   stroke: rgba(122, 190, 255, 0.14);
   stroke-width: 1;
+  transition: fill 0.18s ease, stroke 0.18s ease, stroke-width 0.18s ease, filter 0.18s ease;
+}
+
+.region-label-item {
+  cursor: pointer;
+  pointer-events: all;
+  transition: opacity 0.18s ease, filter 0.18s ease;
 }
 
 .region-point-label {
   font-weight: 700;
+  transition: fill 0.18s ease, opacity 0.18s ease;
+  pointer-events: none;
+}
+
+.region-label-item.is-active .region-label-chip {
+  filter: drop-shadow(0 0 16px rgba(104, 196, 255, 0.18));
+}
+
+.region-label-item.is-active .region-point-label {
+  fill: #f4fbff;
+}
+
+.region-panel-stage {
+  letter-spacing: 0.06em;
+  fill: #9fc8ef;
+  pointer-events: none;
 }
 
 .hierarchy-panel .panel-body {
@@ -735,8 +760,10 @@ svg {
 .chain-node,
 .chain-edge {
   cursor: pointer;
+  transition: opacity 0.18s ease, filter 0.18s ease;
 }
 
+.region-label-item:hover,
 .region-node:hover,
 .chain-node:hover,
 .chain-edge:hover {
