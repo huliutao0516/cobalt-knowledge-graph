@@ -212,18 +212,18 @@ body.globe-ready #earthFallback {
 
 .topbar {
   position: absolute;
-  top: 18px;
-  left: 18px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(111, 200, 255, 0.22);
-  background: rgba(5, 14, 26, 0.76);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  color: var(--accent-strong);
+  top: 22px;
+  left: 52px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #ffffff;
   text-align: left;
   pointer-events: none;
-  box-shadow: 0 0 18px rgba(58, 142, 255, 0.1);
+  text-shadow: 0 0 18px rgba(86, 176, 255, 0.16);
 }
 
 .toolbar {
