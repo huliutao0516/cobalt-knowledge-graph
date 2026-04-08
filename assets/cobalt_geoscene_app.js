@@ -1379,7 +1379,7 @@
       return { ...point, p, crowd, index };
     });
 
-    const labelLimit = width > 1500 ? 14 : (width > 1200 ? 12 : 9);
+    const labelLimit = width > 1500 ? 9 : 8;
     const prioritized = crowdData
       .sort((a, b) =>
         Number(b.selected) - Number(a.selected)
@@ -1391,7 +1391,7 @@
     const chosen = [];
     prioritized.forEach((point) => {
       if (chosen.length >= labelLimit) return;
-      if (point.selected || point.crowd >= 2 || point.weight >= 2.6) chosen.push(point);
+      if (point.selected || point.crowd >= 2 || point.weight >= 2.9) chosen.push(point);
     });
     prioritized.forEach((point) => {
       if (chosen.length >= labelLimit) return;
@@ -1399,76 +1399,66 @@
       chosen.push(point);
     });
 
-    const centerX = (plotBox.left + plotBox.right) / 2;
-    const centerY = (plotBox.top + plotBox.bottom) / 2;
-    const buckets = { left: [], right: [] };
-
-    chosen.forEach((point, order) => {
-      let side = point.p.x >= centerX ? "right" : "left";
-      if (Math.abs(point.p.x - centerX) < 42) side = order % 2 === 0 ? "right" : "left";
-      const crowded = point.crowd >= 2;
-      const labelText = shortText(point.chainName || point.name, width > 1400 ? 30 : 24);
-      const chipWidth = clamp(Math.round(labelText.length * labelFont * 0.62 + 22), 92, width > 1400 ? 270 : 228);
-      const textX = side === "right" ? plotBox.right + 34 : plotBox.left - 34;
-      const rectX = side === "right" ? textX - 10 : textX - chipWidth + 10;
-      const lineEndX = side === "right" ? rectX - 10 : rectX + chipWidth + 10;
-      const desiredY = clamp(
-        point.p.y + (crowded ? (point.p.y < centerY ? -22 : 22) : (order % 2 === 0 ? -16 : 16)),
-        paddingY + 18,
-        height - paddingY - 12
-      );
-      buckets[side].push({
-        ...point,
-        crowded,
-        side,
-        textX,
-        rectX,
-        chipWidth,
-        lineEndX,
-        labelText,
-        desiredY
-      });
+    const uniqueChosen = [];
+    const seenLabels = new Set();
+    chosen.forEach((item) => {
+      const labelKey = normalizeLabelKey(item.chainName || item.name);
+      if (!labelKey || seenLabels.has(labelKey)) return;
+      seenLabels.add(labelKey);
+      uniqueChosen.push(item);
     });
 
+    const panelWidth = clamp(Math.round(width * 0.28), 296, 360);
+    const panel = {
+      left: plotBox.right + 18,
+      right: Math.min(width - paddingX, plotBox.right + 18 + panelWidth),
+      top: plotBox.top,
+      bottom: plotBox.bottom,
+      headerHeight: 28
+    };
+    const innerPad = 12;
+    const colGap = 10;
+    const columns = 1;
+    const itemHeight = labelFont + 12;
+    const rowGap = 10;
+    const columnWidth = Math.floor(
+      (panel.right - panel.left - innerPad * 2 - colGap * (columns - 1)) / columns
+    );
+    const rows = Math.ceil(uniqueChosen.length / columns);
     const layout = new Map();
-    ["left", "right"].forEach((side) => {
-      const bucket = buckets[side];
-      if (!bucket.length) return;
-      const minGap = width > 1500 ? 20 : 18;
-      const minY = paddingY + 18;
-      const maxY = height - paddingY - 12;
-      bucket.sort((a, b) => a.desiredY - b.desiredY);
-      let previousY = minY - minGap;
-      bucket.forEach((item) => {
-        item.labelY = Math.max(item.desiredY, previousY + minGap);
-        previousY = item.labelY;
-      });
-      const overflow = bucket[bucket.length - 1].labelY - maxY;
-      if (overflow > 0) {
-        for (let i = bucket.length - 1; i >= 0; i -= 1) {
-          bucket[i].labelY -= overflow;
-          if (i < bucket.length - 1 && bucket[i].labelY > bucket[i + 1].labelY - minGap) {
-            bucket[i].labelY = bucket[i + 1].labelY - minGap;
-          }
-        }
-      }
-      bucket.forEach((item) => {
-        item.labelY = clamp(item.labelY, minY, maxY);
+
+    uniqueChosen
+      .sort((a, b) =>
+        Number(b.selected) - Number(a.selected)
+        || stageOrder.indexOf(a.dominantStage) - stageOrder.indexOf(b.dominantStage)
+        || b.weight - a.weight
+        || a.name.localeCompare(b.name, "en")
+      )
+      .forEach((item, index) => {
+        const column = columns === 1 ? 0 : Math.floor(index / rows);
+        const row = columns === 1 ? index : index % rows;
+        const rectX = panel.left + innerPad + column * (columnWidth + colGap);
+        const rectY = panel.top + panel.headerHeight + 10 + row * (itemHeight + rowGap);
+        const labelY = rectY + itemHeight / 2 + 4;
         layout.set(item.key, {
-          crowded: item.crowded,
-          text: item.labelText,
-          textX: item.textX,
-          rectX: item.rectX,
-          rectWidth: item.chipWidth,
-          lineEndX: item.lineEndX,
-          bendX: item.side === "right" ? plotBox.right + 10 : plotBox.left - 10,
-          labelY: item.labelY,
-          anchor: side === "right" ? "start" : "end"
+          crowded: item.crowd >= 2,
+          text: shortText(item.chainName || item.name, width > 1400 ? 28 : 22),
+          textX: rectX + 18,
+          rectX,
+          rectY,
+          rectWidth: columnWidth,
+          rectHeight: itemHeight,
+          lineEndX: rectX - 8,
+          bendX: plotBox.right + 10 + column * 6,
+          labelY,
+          anchor: "start",
+          dotX: rectX + 10,
+          dotY: rectY + itemHeight / 2,
+          color: stageColor(item.dominantStage)
         });
       });
-    });
 
-    return layout;
+    return { layout, panel, count: chosen.length };
   }
 
   function renderRegion(context) {
@@ -1503,7 +1493,9 @@
       bottom: height - paddingY - 20
     };
     const projected = new Map(model.points.map((point) => [point.key, projectRegionPointToBox(point, bounds, plotBox)]));
-    const labelLayout = buildRegionLabelLayout(model.points, projected, width, height, paddingX, paddingY, plotBox, labelFont);
+    const regionLabels = buildRegionLabelLayout(model.points, projected, width, height, paddingX, paddingY, plotBox, labelFont);
+    const labelLayout = regionLabels.layout;
+    const labelPanel = regionLabels.panel;
 
     byId("regionMeta").textContent = context.mode === "camera" ? "当前视角对应的地理窗口" : "当前焦点下的真实坐标投影";
     byId("regionCaption").textContent = `纬度 ${bounds.minLat.toFixed(1)}° 至 ${bounds.maxLat.toFixed(1)}°，经度 ${bounds.minLon.toFixed(1)}° 至 ${bounds.maxLon.toFixed(1)}°；共 ${fmt.format(model.points.length)} 个落点、${fmt.format(model.links.length)} 条关系。`;
@@ -1552,11 +1544,12 @@
           <rect
             class="region-label-chip"
             x="${labelInfo.rectX}"
-            y="${labelInfo.labelY - labelFont + 3}"
+            y="${labelInfo.rectY}"
             width="${labelInfo.rectWidth}"
-            height="${labelFont + 10}"
+            height="${labelInfo.rectHeight}"
             rx="8"
           />
+          <circle cx="${labelInfo.dotX}" cy="${labelInfo.dotY}" r="4" fill="${labelInfo.color}" />
           <line
             class="region-label-line${labelInfo.crowded ? " is-crowded" : ""}"
             x1="${p.x}"
@@ -1589,6 +1582,8 @@
     svg.innerHTML = `
       <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(3,9,17,.34)"></rect>
       <rect x="${plotBox.left}" y="${plotBox.top}" width="${plotBox.right - plotBox.left}" height="${plotBox.bottom - plotBox.top}" rx="18" fill="rgba(5, 12, 22, .26)" stroke="rgba(110,198,255,.08)" stroke-width="1"></rect>
+      <rect x="${labelPanel.left}" y="${labelPanel.top}" width="${labelPanel.right - labelPanel.left}" height="${labelPanel.bottom - labelPanel.top}" rx="16" fill="rgba(5, 12, 22, .18)" stroke="rgba(110,198,255,.08)" stroke-width="1"></rect>
+      <text class="chart-sub-label" x="${labelPanel.left + 14}" y="${labelPanel.top + 20}" font-size="${metaFont}">重点实体标签 ${fmt.format(regionLabels.count)}</text>
       ${gridLines.join("")}
       ${linkHtml}
       ${pointHtml}
