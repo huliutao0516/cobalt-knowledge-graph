@@ -18,6 +18,17 @@
   const toArray = (value) => Array.isArray(value)
     ? value.filter((item) => item !== null && item !== undefined && item !== "")
     : (value === null || value === undefined || value === "" ? [] : [value]);
+  const uniqueValues = (list) => {
+    const seen = new Set();
+    const result = [];
+    toArray(list).forEach((item) => {
+      const text = String(item ?? "").trim();
+      if (!text || seen.has(text)) return;
+      seen.add(text);
+      result.push(text);
+    });
+    return result;
+  };
   const safeText = (value, fallback = "未标注") => {
     const text = String(value ?? "").trim();
     return text || fallback;
@@ -140,7 +151,7 @@
 
   const entities = new Map((DATA.entities || []).map((entity) => [entity.id, entity]));
   const sources = new Map((DATA.sources || []).map((source) => [source.id, source]));
-  const transactions = (DATA.transactions || []).map((tx) => ({
+  const rawTransactions = (DATA.transactions || []).map((tx) => ({
     ...tx,
     supplierStage: stageLookup.get(String(tx.supplierStage || "").toLowerCase()) || tx.supplierStage || "Unknown",
     buyerStage: stageLookup.get(String(tx.buyerStage || "").toLowerCase()) || tx.buyerStage || "Unknown",
@@ -151,11 +162,71 @@
     sourceIds: toArray(tx.sourceIds),
     notes: toArray(tx.notes)
   }));
+  const transactionIdentityKey = (tx) => JSON.stringify([
+    tx.supplierCompanyId || "",
+    tx.supplierFacilityId || "",
+    tx.buyerCompanyId || "",
+    tx.buyerFacilityId || "",
+    tx.supplierStage || "",
+    tx.buyerStage || "",
+    uniqueValues(tx.inputCommodityIds).join("|"),
+    uniqueValues(tx.outputCommodityIds).join("|"),
+    uniqueValues(tx.sourceIds).join("|"),
+    tx.date || "",
+    tx.expectedDate || "",
+    tx.realised || "",
+    tx.amountTonnesRaw || "",
+    tx.amountUnitsRaw || "",
+    tx.amountUsdRaw || "",
+    tx.amountYuanRaw || "",
+    tx.amountEnergyRaw || "",
+    uniqueValues(tx.notes).join("|")
+  ]);
+  const transactions = [];
+  const dedupedTransactions = new Map();
+
+  rawTransactions.forEach((tx) => {
+    const key = transactionIdentityKey(tx);
+    const existing = dedupedTransactions.get(key);
+    if (!existing) {
+      const merged = {
+        ...tx,
+        rawCount: 1,
+        rawIds: [tx.id]
+      };
+      dedupedTransactions.set(key, merged);
+      transactions.push(merged);
+      return;
+    }
+
+    existing.rawCount += 1;
+    existing.rawIds.push(tx.id);
+    existing.sourceIds = uniqueValues([...existing.sourceIds, ...tx.sourceIds]);
+    existing.notes = uniqueValues([...existing.notes, ...tx.notes]);
+    existing.inputCommodities = uniqueValues([...existing.inputCommodities, ...tx.inputCommodities]);
+    existing.outputCommodities = uniqueValues([...existing.outputCommodities, ...tx.outputCommodities]);
+    existing.inputCommodityIds = uniqueValues([...existing.inputCommodityIds, ...tx.inputCommodityIds]);
+    existing.outputCommodityIds = uniqueValues([...existing.outputCommodityIds, ...tx.outputCommodityIds]);
+    existing.sourceCount = Math.max(existing.sourceCount || 0, tx.sourceCount || 0, existing.sourceIds.length);
+    existing.hasQuantity = existing.hasQuantity || tx.hasQuantity;
+    existing.hasDate = existing.hasDate || tx.hasDate;
+    if (!existing.date && tx.date) existing.date = tx.date;
+    if (!existing.expectedDate && tx.expectedDate) existing.expectedDate = tx.expectedDate;
+    if (!existing.realised && tx.realised) existing.realised = tx.realised;
+    if (!existing.amountTonnesRaw && tx.amountTonnesRaw) existing.amountTonnesRaw = tx.amountTonnesRaw;
+    if (!existing.amountUnitsRaw && tx.amountUnitsRaw) existing.amountUnitsRaw = tx.amountUnitsRaw;
+    if (!existing.amountUsdRaw && tx.amountUsdRaw) existing.amountUsdRaw = tx.amountUsdRaw;
+    if (!existing.amountYuanRaw && tx.amountYuanRaw) existing.amountYuanRaw = tx.amountYuanRaw;
+    if (!existing.amountEnergyRaw && tx.amountEnergyRaw) existing.amountEnergyRaw = tx.amountEnergyRaw;
+  });
+
   const txById = new Map(transactions.map((tx) => [tx.id, tx]));
 
   const companyFacilities = new Map();
   const facilityCompany = new Map();
   const txByEntity = new Map();
+  const txBySupplierEntity = new Map();
+  const txByBuyerEntity = new Map();
 
   const pushMapArray = (map, key, value) => {
     if (!key) return;
@@ -172,6 +243,8 @@
     [tx.supplierCompanyId, tx.buyerCompanyId, tx.supplierFacilityId, tx.buyerFacilityId].filter(Boolean).forEach((id) => {
       pushMapArray(txByEntity, id, tx);
     });
+    [tx.supplierCompanyId, tx.supplierFacilityId].filter(Boolean).forEach((id) => pushMapArray(txBySupplierEntity, id, tx));
+    [tx.buyerCompanyId, tx.buyerFacilityId].filter(Boolean).forEach((id) => pushMapArray(txByBuyerEntity, id, tx));
   });
 
   const searchCatalog = [...entities.values()].map((entity) => ({
@@ -204,7 +277,8 @@
     selectedEntityId: "",
     selectedTxId: "",
     evidenceOpen: false,
-    view: { lat: 16, lng: 102, altitude: 2.35 },
+    regionOpen: false,
+    view: { lat: 16, lng: 102, altitude: 3.08 },
     textureNotice: "",
     globeNotice: "",
     globeMode: "pending",
@@ -280,6 +354,132 @@
     };
   }
 
+  function compactLabelText(value) {
+    return String(value || "")
+      .replace(/_\-_/g, ", ")
+      .replace(/[|]/g, ", ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function normalizeLabelKey(value) {
+    return compactLabelText(value).toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "");
+  }
+
+  function genericFacilityToken(text) {
+    return /^(headquarter|headquarters|office|plant|factory|facility|mine|smelter|refinery|project|warehouse)$/i.test(String(text || "").trim());
+  }
+
+  function firstAddressLabel(value) {
+    const cleaned = compactLabelText(value);
+    if (!cleaned) return "";
+    const parts = cleaned.split(/,|\/|;/).map((item) => item.trim()).filter(Boolean);
+    return parts.find((item) => item.length >= 5) || parts[0] || "";
+  }
+
+  function looksLikeLocationOnlyLabel(label, place = "") {
+    const text = compactLabelText(label);
+    if (!text) return true;
+    if (genericFacilityToken(text)) return true;
+    if (/(company|co\.|corp|corporation|group|limited|ltd|inc|llc|plc|gmbh|sarl|sa|mine|mining|plant|factory|facility|refinery|smelter|industrial|technology|materials|battery|cobalt|nickel|metal|trading|works|project|park)/i.test(text)) {
+      return false;
+    }
+    const placeKey = normalizeLabelKey(place);
+    const textKey = normalizeLabelKey(text);
+    if (!textKey) return true;
+    return placeKey.includes(textKey) && text.split(/\s+/).length <= 3;
+  }
+
+  function ownerCompanyName(entity) {
+    if (!entity || entity.type !== "facility") return "";
+    const ownerId = facilityCompany.get(entity.id);
+    return ownerId ? entities.get(ownerId)?.name || "" : "";
+  }
+
+  function chainSubjectIdentity(entity, { companyName = "", facilityRaw = "", fallback = "" } = {}) {
+    const ownerId = entity?.type === "company"
+      ? entity.id
+      : (entity?.id ? facilityCompany.get(entity.id) || "" : "");
+    const ownerEntity = ownerId ? entities.get(ownerId) : null;
+    const ownerName = compactLabelText(
+      companyName
+      || ownerEntity?.name
+      || ownerCompanyName(entity)
+      || ""
+    );
+    const name = ownerName || preferredEntityLabel(entity, { companyName, facilityRaw, fallback });
+    const entityId = ownerEntity?.id || (entity?.type === "company" ? entity.id : entity?.id || "");
+    return {
+      entityId,
+      name,
+      key: entityId || `subject:${normalizeLabelKey(name || fallback || facilityRaw)}`
+    };
+  }
+
+  function shortPlaceLabel(value) {
+    const cleaned = compactLabelText(value);
+    if (!cleaned) return "";
+    const parts = cleaned.split(/,|\/|;/).map((item) => item.trim()).filter(Boolean);
+    return parts[0] || "";
+  }
+
+  function dedupeTextList(list) {
+    const seen = new Set();
+    const result = [];
+    list.forEach((item) => {
+      const text = compactLabelText(item);
+      const key = normalizeLabelKey(text);
+      if (!text || !key || seen.has(key)) return;
+      seen.add(key);
+      result.push(text);
+    });
+    return result;
+  }
+
+  function preferredEntityLabel(entity, { companyName = "", facilityRaw = "", fallback = "" } = {}) {
+    const parsed = parseFacilityText(facilityRaw);
+    const ownerName = companyName || ownerCompanyName(entity);
+    const entityName = compactLabelText(entity?.name || "");
+    const displayName = compactLabelText(entity?.displayName || "");
+    const entityPlace = compactLabelText(entity?.place || parsed.place || "");
+    const typeLabel = displayFacilityType(parsed.type || entity?.facilityType || "");
+
+    if (entity?.type === "company") {
+      return compactLabelText(entityName || ownerName || fallback) || "未命名实体";
+    }
+
+    if (entityName && !looksLikeLocationOnlyLabel(entityName, entityPlace) && !genericFacilityToken(entityName)) {
+      return entityName;
+    }
+
+    if (displayName && !looksLikeLocationOnlyLabel(displayName, entityPlace) && !genericFacilityToken(displayName)) {
+      return displayName;
+    }
+
+    if (ownerName && typeLabel && !/^(总部|办公点)$/.test(typeLabel)) {
+      if (entityName && entityName.length <= 10 && !genericFacilityToken(entityName)) {
+        return `${compactLabelText(ownerName)} ${entityName}`;
+      }
+      return `${compactLabelText(ownerName)} ${typeLabel}`;
+    }
+
+    if (ownerName && /^(总部|办公点)$/.test(typeLabel)) {
+      const placeLabel = shortPlaceLabel(entityPlace);
+      if (placeLabel) return `${compactLabelText(ownerName)} ${placeLabel}`;
+    }
+
+    if (ownerName) {
+      return compactLabelText(ownerName);
+    }
+
+    const addressLabel = firstAddressLabel(entityPlace);
+    if (addressLabel) return addressLabel;
+
+    if (typeLabel) return typeLabel;
+
+    return compactLabelText(entityName || fallback) || "未命名实体";
+  }
+
   function sourceLinksForTx(tx) {
     return tx.sourceIds.map((id) => sources.get(id)).filter(Boolean);
   }
@@ -318,171 +518,6 @@
     return { width, height };
   }
 
-  function estimateTextWidth(text, fontSize) {
-    let units = 0;
-    for (const ch of String(text || "")) {
-      if (/\s/.test(ch)) units += 0.36;
-      else if (/[A-Z0-9]/.test(ch)) units += 0.68;
-      else if (/[a-z]/.test(ch)) units += 0.58;
-      else if (/[\u4e00-\u9fff]/.test(ch)) units += 1.02;
-      else units += 0.78;
-    }
-    return Math.max(fontSize * 2.2, units * fontSize * 0.68);
-  }
-
-  function boxesOverlap(a, b, gap = 0) {
-    return !(
-      a.x2 + gap < b.x1
-      || a.x1 - gap > b.x2
-      || a.y2 + gap < b.y1
-      || a.y1 - gap > b.y2
-    );
-  }
-
-  function clampLabelBox(box, bounds) {
-    const width = box.x2 - box.x1;
-    const height = box.y2 - box.y1;
-    let x1 = box.x1;
-    let y1 = box.y1;
-    if (x1 < bounds.minX) x1 = bounds.minX;
-    if (x1 + width > bounds.maxX) x1 = bounds.maxX - width;
-    if (y1 < bounds.minY) y1 = bounds.minY;
-    if (y1 + height > bounds.maxY) y1 = bounds.maxY - height;
-    return { x1, y1, x2: x1 + width, y2: y1 + height };
-  }
-
-  function makeLabelCandidate(item, variant, bounds) {
-    const paddingX = 8;
-    const paddingY = 4;
-    const textWidth = estimateTextWidth(item.text, item.fontSize);
-    const boxWidth = textWidth + paddingX * 2;
-    const boxHeight = item.fontSize + paddingY * 2 + 2;
-    const gap = item.nodeRadius + 10;
-
-    let box;
-    let textAnchor = "start";
-    let textX = item.x + gap + paddingX;
-    let textY = item.y;
-
-    switch (variant) {
-      case "right":
-        box = { x1: item.x + gap, y1: item.y - boxHeight / 2, x2: item.x + gap + boxWidth, y2: item.y + boxHeight / 2 };
-        textAnchor = "start";
-        textX = box.x1 + paddingX;
-        break;
-      case "left":
-        box = { x1: item.x - gap - boxWidth, y1: item.y - boxHeight / 2, x2: item.x - gap, y2: item.y + boxHeight / 2 };
-        textAnchor = "start";
-        textX = box.x1 + paddingX;
-        break;
-      case "top":
-        box = { x1: item.x - boxWidth / 2, y1: item.y - gap - boxHeight, x2: item.x + boxWidth / 2, y2: item.y - gap };
-        textAnchor = "middle";
-        textX = item.x;
-        break;
-      case "bottom":
-        box = { x1: item.x - boxWidth / 2, y1: item.y + gap, x2: item.x + boxWidth / 2, y2: item.y + gap + boxHeight };
-        textAnchor = "middle";
-        textX = item.x;
-        break;
-      case "top-right":
-        box = { x1: item.x + gap * 0.75, y1: item.y - gap - boxHeight * 0.9, x2: item.x + gap * 0.75 + boxWidth, y2: item.y - gap + boxHeight * 0.1 };
-        textAnchor = "start";
-        textX = box.x1 + paddingX;
-        break;
-      case "bottom-right":
-        box = { x1: item.x + gap * 0.75, y1: item.y + gap * 0.25, x2: item.x + gap * 0.75 + boxWidth, y2: item.y + gap * 0.25 + boxHeight };
-        textAnchor = "start";
-        textX = box.x1 + paddingX;
-        break;
-      case "top-left":
-        box = { x1: item.x - gap * 0.75 - boxWidth, y1: item.y - gap - boxHeight * 0.9, x2: item.x - gap * 0.75, y2: item.y - gap + boxHeight * 0.1 };
-        textAnchor = "start";
-        textX = box.x1 + paddingX;
-        break;
-      case "bottom-left":
-        box = { x1: item.x - gap * 0.75 - boxWidth, y1: item.y + gap * 0.25, x2: item.x - gap * 0.75, y2: item.y + gap * 0.25 + boxHeight };
-        textAnchor = "start";
-        textX = box.x1 + paddingX;
-        break;
-      default:
-        return null;
-    }
-
-    const clamped = clampLabelBox(box, bounds);
-    const offsetX = clamped.x1 - box.x1;
-    const offsetY = clamped.y1 - box.y1;
-
-    return {
-      variant,
-      box: clamped,
-      textAnchor,
-      textX: textX + offsetX,
-      textY: item.y + offsetY,
-      boxWidth,
-      boxHeight
-    };
-  }
-
-  function buildLabelVariants(item, mode = "generic") {
-    const rightHeavy = item.x < (item.midX ?? Infinity);
-    const topHeavy = item.y > (item.midY ?? Infinity);
-    if (mode === "region") {
-      return rightHeavy
-        ? (topHeavy ? ["right", "top-right", "bottom-right", "top", "bottom", "left"] : ["right", "bottom-right", "top-right", "bottom", "top", "left"])
-        : (topHeavy ? ["left", "top-left", "bottom-left", "top", "bottom", "right"] : ["left", "bottom-left", "top-left", "bottom", "top", "right"]);
-    }
-    return rightHeavy
-      ? (topHeavy ? ["right", "bottom-right", "top-right", "bottom", "top", "left"] : ["right", "top-right", "bottom-right", "top", "bottom", "left"])
-      : (topHeavy ? ["left", "bottom-left", "top-left", "bottom", "top", "right"] : ["left", "top-left", "bottom-left", "top", "bottom", "right"]);
-  }
-
-  function placeSmartLabels(items, bounds, options = {}) {
-    const mode = options.mode || "generic";
-    const labelBoxes = [];
-    const nodeBoxes = options.nodeBoxes || [];
-    const placed = [];
-
-    items.forEach((item) => {
-      const variants = buildLabelVariants(item, mode);
-      let chosen = null;
-      for (const variant of variants) {
-        const candidate = makeLabelCandidate(item, variant, bounds);
-        if (!candidate) continue;
-        const hitsLabel = labelBoxes.some((box) => boxesOverlap(candidate.box, box, 3));
-        const hitsNode = nodeBoxes.some((box) => boxesOverlap(candidate.box, box, 2));
-        if (!hitsLabel && !hitsNode) {
-          chosen = candidate;
-          break;
-        }
-      }
-      if (!chosen && item.selected) {
-        chosen = makeLabelCandidate(item, variants[0], bounds);
-      }
-      if (!chosen) return;
-      labelBoxes.push(chosen.box);
-      placed.push({ ...item, ...chosen });
-    });
-
-    return placed;
-  }
-
-  function labelGroupHtml(label, className = "chart-label") {
-    const rectX = label.box.x1;
-    const rectY = label.box.y1;
-    const rectWidth = label.box.x2 - label.box.x1;
-    const rectHeight = label.box.y2 - label.box.y1;
-    const lineToX = Math.min(Math.max(label.x, label.box.x1), label.box.x2);
-    const lineToY = Math.min(Math.max(label.y, label.box.y1), label.box.y2);
-    return `
-      <g class="chart-label-group">
-        <line class="chart-pointer" x1="${label.x}" y1="${label.y}" x2="${lineToX}" y2="${lineToY}" />
-        <rect class="chart-label-box" x="${rectX}" y="${rectY}" width="${rectWidth}" height="${rectHeight}" rx="7" ry="7"></rect>
-        <text class="${className}" x="${label.textX}" y="${label.textY}" text-anchor="${label.textAnchor}" dominant-baseline="middle" font-size="${label.fontSize}">${esc(label.text)}</text>
-      </g>
-    `;
-  }
-
   function dominantStageForEntity(entityId) {
     const counts = new Map();
     (txByEntity.get(entityId) || []).forEach((tx) => {
@@ -498,8 +533,11 @@
 
   function entityTitle(entityId, fallback = "") {
     const entity = entityId ? entities.get(entityId) : null;
-    if (entity?.name) return entity.name;
-    return safeText(fallback, "未命名实体");
+    return preferredEntityLabel(entity, { fallback });
+  }
+
+  function displayNodeKey(node) {
+    return `${node.stage}::${normalizeLabelKey(node.name)}`;
   }
 
   function entitySubtitle(entity) {
@@ -543,6 +581,12 @@
     const facilityRaw = source ? tx.supplierFacility : tx.buyerFacility;
     const companyRaw = source ? tx.supplierCompany : tx.buyerCompany;
     const parsed = parseFacilityText(facilityRaw);
+    const fallbackName = companyRaw || facilityRaw || "Unknown entity";
+    const chainSubject = chainSubjectIdentity(entity, {
+      companyName: companyRaw,
+      facilityRaw,
+      fallback: fallbackName
+    });
     return {
       key: entityId || `${source ? "supplier" : "buyer"}:${companyRaw || facilityRaw || tx.id}`,
       entityId,
@@ -554,7 +598,14 @@
       pointOrigin: source ? tx.sourcePointOrigin : tx.targetPointOrigin,
       country: entity?.country || (source ? tx.supplierCountry : tx.buyerCountry) || parsed.country || "",
       place: entity?.place || parsed.place || "",
-      name: entity?.name || companyRaw || facilityRaw || "未命名实体"
+      chainEntityId: chainSubject.entityId,
+      chainKey: chainSubject.key,
+      chainName: chainSubject.name,
+      name: preferredEntityLabel(entity, {
+        companyName: companyRaw,
+        facilityRaw,
+        fallback: companyRaw || facilityRaw || "未命名实体"
+      })
     };
   }
 
@@ -566,18 +617,23 @@
     return state.selectedTxId ? txById.get(state.selectedTxId) || null : null;
   }
 
-  function entityScopeIds(entityId) {
+  function entityScopeIds(entityId, options = {}) {
+    const { includeCompanyFacilities = true, includeOwnerCompany = false } = options;
     const scope = new Set();
     if (!entityId) return scope;
     scope.add(entityId);
     const entity = entities.get(entityId);
-    if (entity?.type === "company") {
+    if (entity?.type === "company" && includeCompanyFacilities) {
       (companyFacilities.get(entity.id) || []).forEach((facilityId) => scope.add(facilityId));
-    } else {
+    } else if (includeOwnerCompany) {
       const ownerId = facilityCompany.get(entityId);
       if (ownerId) scope.add(ownerId);
     }
     return scope;
+  }
+
+  function graphSeedEntityIds(entityId) {
+    return entityScopeIds(entityId, { includeCompanyFacilities: true, includeOwnerCompany: false });
   }
 
   function stageFilteredTransactions() {
@@ -586,13 +642,52 @@
   }
 
   function entityFocusedTransactions(base, entityId) {
-    const scopedIds = entityScopeIds(entityId);
+    const scopedIds = graphSeedEntityIds(entityId);
     return base.filter((tx) =>
       scopedIds.has(tx.supplierCompanyId)
       || scopedIds.has(tx.buyerCompanyId)
       || scopedIds.has(tx.supplierFacilityId)
       || scopedIds.has(tx.buyerFacilityId)
     );
+  }
+
+  function txEntityIds(tx, side) {
+    return uniqueValues(side === "supplier"
+      ? [tx.supplierCompanyId, tx.supplierFacilityId]
+      : [tx.buyerCompanyId, tx.buyerFacilityId]);
+  }
+
+  function expandEntityChainTransactions(base, entityId, maxDepth = 7) {
+    const allowedTxIds = new Set(base.map((tx) => tx.id));
+    const collected = new Map();
+
+    const walk = (seedIds, indexMap, nextSide) => {
+      const seen = new Set(seedIds);
+      let frontier = [...seedIds];
+      let depth = 0;
+
+      while (frontier.length && depth < maxDepth) {
+        const nextFrontier = [];
+        frontier.forEach((entityKey) => {
+          (indexMap.get(entityKey) || []).forEach((tx) => {
+            if (!allowedTxIds.has(tx.id)) return;
+            if (!collected.has(tx.id)) collected.set(tx.id, tx);
+            txEntityIds(tx, nextSide).forEach((nextId) => {
+              if (!nextId || seen.has(nextId)) return;
+              seen.add(nextId);
+              nextFrontier.push(nextId);
+            });
+          });
+        });
+        frontier = nextFrontier;
+        depth += 1;
+      }
+    };
+
+    const seedIds = graphSeedEntityIds(entityId);
+    walk(seedIds, txBySupplierEntity, "buyer");
+    walk(seedIds, txByBuyerEntity, "supplier");
+    return [...collected.values()];
   }
 
   function transactionNeighborhood(base, tx) {
@@ -656,10 +751,12 @@
     }
 
     if (!focus.length) focus = base;
+    const chainFocus = entity ? expandEntityChainTransactions(base, entity.id) : focus;
 
     return {
       base,
       focus,
+      chainFocus,
       entity,
       tx,
       mode,
@@ -668,7 +765,7 @@
   }
 
   function currentModeLabel(context) {
-    if (context.mode === "entity" && context.entity) return `围绕 ${context.entity.name}`;
+    if (context.mode === "entity" && context.entity) return `围绕 ${entityTitle(context.entity.id, context.entity.name)}`;
     if (context.mode === "transaction" && context.tx) return "关系邻域";
     if (context.mode === "camera") return "当前视角区域";
     return "全球总览";
@@ -700,9 +797,7 @@
 
   function setupFallbackEarth() {
     const root = document.documentElement;
-    const texture = window.COBALT_EARTH_FALLBACK || "";
-    if (texture) root.style.setProperty("--earth-fallback-image", `url('${texture}')`);
-    else root.style.setProperty("--earth-fallback-image", "url('assets/earth_satellite_1350.jpg')");
+    root.style.setProperty("--earth-fallback-image", "url('assets/earth_github_4096.jpg')");
   }
 
   function setupFallbackInteraction() {
@@ -763,7 +858,9 @@
   }
 
   function buildLegend() {
-    byId("legendList").innerHTML = stageOrder.map((stage) => `
+    byId("legendList").innerHTML = stageOrder
+      .filter((stage) => stage !== "Electric scooter manufacturing")
+      .map((stage) => `
       <span class="legend-pill">
         <span class="legend-dot" style="--dot:${stageColor(stage)}"></span>
         ${esc(displayStage(stage))}
@@ -799,8 +896,11 @@
   }
 
   function renderFocusChip(context) {
-    byId("focusTitle").textContent = currentModeLabel(context);
-    byId("focusSub").textContent = currentModeSub(context);
+    const title = byId("focusTitle");
+    const sub = byId("focusSub");
+    if (!title || !sub) return;
+    title.textContent = currentModeLabel(context);
+    sub.textContent = currentModeSub(context);
   }
 
   function globalSummaryCard(context) {
@@ -839,6 +939,7 @@
   }
 
   function entitySummaryCard(entity, context) {
+    const entityLabel = entityTitle(entity.id, entity.name);
     const related = entityFocusedTransactions(context.base, entity.id);
     const upstream = new Set();
     const downstream = new Set();
@@ -867,7 +968,7 @@
 
     return `
       <div class="entity-card">
-        <div class="entity-title">${esc(entity.name)}</div>
+        <div class="entity-title">${esc(entityLabel)}</div>
         <div class="entity-sub">${esc(entitySubtitle(entity))}</div>
         <div class="stats-grid">
           <div class="stat-card"><div class="stat-key">关联关系</div><div class="stat-value">${fmt.format(related.length)}</div></div>
@@ -894,7 +995,7 @@
 
   function renderSummary(context) {
     byId("infoMeta").textContent = context.entity
-      ? `已锁定：${context.entity.name}`
+      ? `已锁定：${entityTitle(context.entity.id, context.entity.name)}`
       : (context.tx ? "已锁定关系" : "当前未锁定实体");
     byId("summaryBody").innerHTML = context.entity
       ? entitySummaryCard(context.entity, context)
@@ -922,6 +1023,7 @@
           <div class="kv-row"><span>输出产品</span><span class="value">${esc(tx.outputCommodities.join(" / ") || "未标注")}</span></div>
           <div class="kv-row"><span>坐标来源</span><span class="value">${esc(displayPointOrigin(tx.sourcePointOrigin))} → ${esc(displayPointOrigin(tx.targetPointOrigin))}</span></div>
           <div class="kv-row"><span>证据条数</span><strong>${fmt.format(tx.sourceIds.length)}</strong></div>
+          ${tx.rawCount > 1 ? `<div class="kv-row"><span>原始记录</span><strong>${fmt.format(tx.rawCount)}</strong></div>` : ""}
         </div>
         ${tx.notes.length ? `<div class="section-title compact-top">证据备注</div><div class="subnote">${esc(tx.notes.join("； "))}</div>` : ""}
         ${sourceLinks.length ? `<div class="source-links">${sourceLinks.slice(0, 6).map((source) => `<a class="source-link" href="${esc(source.url)}" target="_blank" rel="noreferrer">${esc(source.host || source.url)}</a>`).join("")}</div>` : ""}
@@ -931,10 +1033,11 @@
 
   function relationItemHtml(tx) {
     const active = tx.id === state.selectedTxId;
+    const mergedMeta = tx.rawCount > 1 ? ` | 合并 ${fmt.format(tx.rawCount)} 条` : "";
     return `
       <button class="relation-item ${active ? "is-active" : ""}" data-tx="${esc(tx.id)}">
         <div class="relation-title">${esc(entityTitle(tx.supplierFacilityId || tx.supplierCompanyId, tx.supplierCompany || tx.supplierFacility))} → ${esc(entityTitle(tx.buyerFacilityId || tx.buyerCompanyId, tx.buyerCompany || tx.buyerFacility))}</div>
-        <div class="relation-meta">数量：${esc(formatAmount(tx))} | 时间：${esc(formatDate(tx))} | 证据：${fmt.format(tx.sourceIds.length)} 条</div>
+        <div class="relation-meta">数量：${esc(formatAmount(tx))} | 时间：${esc(formatDate(tx))} | 证据：${fmt.format(tx.sourceIds.length)} 条${esc(mergedMeta)}</div>
         <div class="relation-route">
           <span class="route-piece"><span class="node-dot" style="--dot:${stageColor(tx.supplierStage)}"></span>${esc(displayStage(tx.supplierStage))}</span>
           <span class="route-arrow">→</span>
@@ -965,7 +1068,22 @@
     }
   }
 
+  function setRegionVisibility(open) {
+    const modal = byId("regionModal");
+    const backdrop = byId("regionBackdrop");
+    if (!modal || !backdrop) return;
+    const visible = Boolean(open);
+    state.regionOpen = visible;
+    modal.classList.toggle("is-hidden", !visible);
+    backdrop.classList.toggle("is-hidden", !visible);
+    modal.setAttribute("aria-hidden", visible ? "false" : "true");
+    if (visible) {
+      window.requestAnimationFrame(() => renderRegion(computeContext()));
+    }
+  }
+
   function buildEvidenceProfile(entity, related) {
+    const entityLabel = entityTitle(entity.id, entity.name);
     const stage = dominantStageForEntity(entity.id);
     const stageBadge = stage ? `<span class="evidence-tag" style="--badge:${stageColor(stage)}">${esc(displayStage(stage))}</span>` : "";
     const sourceCount = new Set(related.flatMap((tx) => tx.sourceIds)).size;
@@ -980,18 +1098,21 @@
         .map((facilityId) => entities.get(facilityId))
         .filter(Boolean)
         .slice(0, 8)
-        .map((item) => item.name);
+        .map((item) => entityTitle(item.id, item.name));
     } else {
       const ownerId = facilityCompany.get(entity.id);
       const owner = ownerId ? entities.get(ownerId) : null;
       const siblings = ownerId
-        ? (companyFacilities.get(ownerId) || []).filter((facilityId) => facilityId !== entity.id).slice(0, 6).map((facilityId) => entities.get(facilityId)?.name).filter(Boolean)
+        ? (companyFacilities.get(ownerId) || []).filter((facilityId) => facilityId !== entity.id).slice(0, 6).map((facilityId) => {
+          const item = entities.get(facilityId);
+          return item ? entityTitle(item.id, item.name) : "";
+        }).filter(Boolean)
         : [];
-      relatedEntities = [owner?.name, ...siblings].filter(Boolean);
+      relatedEntities = [owner ? entityTitle(owner.id, owner.name) : "", ...siblings].filter(Boolean);
     }
 
     return `
-      <div class="evidence-profile-title">${esc(entity.name)}</div>
+      <div class="evidence-profile-title">${esc(entityLabel)}</div>
       <div class="evidence-chip-row">
         ${stageBadge}
         <span class="chip">${esc(displayEntityType(entity.type))}</span>
@@ -1035,6 +1156,48 @@
     `;
   }
 
+  function groupedEvidenceTransactions(list, direction) {
+    const upstream = direction === "upstream";
+    const groups = new Map();
+
+    list.forEach((tx) => {
+      const counterpartId = upstream
+        ? (tx.supplierFacilityId || tx.supplierCompanyId || "")
+        : (tx.buyerFacilityId || tx.buyerCompanyId || "");
+      const counterpartName = upstream
+        ? entityTitle(counterpartId, tx.supplierCompany || tx.supplierFacility)
+        : entityTitle(counterpartId, tx.buyerCompany || tx.buyerFacility);
+      const stage = upstream ? tx.supplierStage : tx.buyerStage;
+      const signature = [
+        counterpartId || counterpartName,
+        stage,
+        transactionCommodity(tx),
+        formatDate(tx),
+        formatAmount(tx),
+        uniqueValues(tx.sourceIds).join("|"),
+        uniqueValues(tx.notes).join("|")
+      ].join("::");
+
+      if (!groups.has(signature)) {
+        groups.set(signature, {
+          ...tx,
+          txIds: [...(tx.rawIds || [tx.id])],
+          rawCount: tx.rawCount || 1
+        });
+        return;
+      }
+
+      const entry = groups.get(signature);
+      entry.txIds = uniqueValues([...entry.txIds, ...(tx.rawIds || [tx.id])]);
+      entry.rawCount += tx.rawCount || 1;
+      entry.sourceIds = uniqueValues([...entry.sourceIds, ...tx.sourceIds]);
+      entry.notes = uniqueValues([...entry.notes, ...tx.notes]);
+      entry.sourceCount = Math.max(entry.sourceCount || 0, tx.sourceCount || 0, entry.sourceIds.length);
+    });
+
+    return sortTransactionsForList([...groups.values()]);
+  }
+
   function evidenceCardHtml(tx, direction) {
     const upstream = direction === "upstream";
     const counterpartId = upstream
@@ -1046,13 +1209,14 @@
     const stage = upstream ? tx.supplierStage : tx.buyerStage;
     const roleLabel = upstream ? "供应方" : "采购方";
     const sourceLinks = sourceLinksForTx(tx);
-    const active = tx.id === state.selectedTxId;
+    const active = tx.id === state.selectedTxId || (tx.txIds || []).includes(state.selectedTxId);
+    const mergedMeta = tx.rawCount > 1 ? ` | 合并 ${fmt.format(tx.rawCount)} 条重复记录` : "";
 
     return `
       <article class="evidence-card ${active ? "is-active" : ""}" data-tx="${esc(tx.id)}">
         <div class="evidence-card-head">
           <span class="evidence-tag" style="--badge:${stageColor(stage)}">${esc(displayStage(stage))}</span>
-          <span class="meta">${esc(formatAmount(tx))}</span>
+          <span class="meta">${esc(`${formatAmount(tx)}${mergedMeta}`)}</span>
         </div>
         <div class="evidence-card-title">${esc(counterpartName)}</div>
         <dl class="evidence-kv">
@@ -1086,12 +1250,18 @@
 
     openBtn.classList.remove("is-hidden");
     openBtn.textContent = state.evidenceOpen ? "隐藏证据链" : "证据链";
-    const scope = entityScopeIds(entity.id);
+    const scope = graphSeedEntityIds(entity.id);
     const related = entityFocusedTransactions(context.base, entity.id);
-    const upstream = sortTransactionsForList(related.filter((tx) => scope.has(tx.buyerCompanyId) || scope.has(tx.buyerFacilityId)));
-    const downstream = sortTransactionsForList(related.filter((tx) => scope.has(tx.supplierCompanyId) || scope.has(tx.supplierFacilityId)));
+    const upstream = groupedEvidenceTransactions(
+      related.filter((tx) => scope.has(tx.buyerCompanyId) || scope.has(tx.buyerFacilityId)),
+      "upstream"
+    );
+    const downstream = groupedEvidenceTransactions(
+      related.filter((tx) => scope.has(tx.supplierCompanyId) || scope.has(tx.supplierFacilityId)),
+      "downstream"
+    );
 
-    byId("evidenceMeta").textContent = `围绕 ${entity.name} 展开的来源与去向`;
+    byId("evidenceMeta").textContent = `围绕 ${entityTitle(entity.id, entity.name)} 展开的来源与去向`;
     byId("evidenceUpstreamMeta").textContent = `${fmt.format(upstream.length)} 条`;
     byId("evidenceDownstreamMeta").textContent = `${fmt.format(downstream.length)} 条`;
     byId("evidenceProfile").innerHTML = buildEvidenceProfile(entity, related);
@@ -1188,7 +1358,7 @@
     const svg = byId("regionSvg");
     const stats = byId("regionStats");
     const baseViewport = getSvgViewport(svg, 900, 320);
-    const width = Math.max(baseViewport.width, 1040);
+    const width = Math.max(baseViewport.width, 920);
     const height = Math.max(baseViewport.height, 320);
     const paddingX = clamp(Math.round(width * 0.07), 46, 86);
     const paddingY = clamp(Math.round(height * 0.12), 34, 64);
@@ -1246,70 +1416,49 @@
       `;
     }).join("");
 
-    const pointVisuals = model.points.map((point) => {
+    const labelPoints = [...model.points]
+      .sort((a, b) => Number(b.selected) - Number(a.selected) || b.weight - a.weight)
+      .slice(0, width > 1200 ? 14 : 9);
+
+    const pointHtml = model.points.map((point, index) => {
       const p = projected.get(point.key);
-      if (!p) return null;
+      if (!p) return "";
       const color = stageColor(point.dominantStage);
       const radius = point.selected ? 8.5 : clamp(4 + point.weight * 0.22, 4.5, 7.5);
-      return { point, color, radius, p };
-    }).filter(Boolean);
-
-    const labelBounds = {
-      minX: paddingX + 6,
-      minY: paddingY + 6,
-      maxX: width - paddingX - 6,
-      maxY: height - paddingY - 26
-    };
-    const regionLabelCandidates = pointVisuals
-      .slice()
-      .sort((a, b) => Number(b.point.selected) - Number(a.point.selected) || b.point.weight - a.point.weight)
-      .slice(0, width > 1500 ? 18 : width > 1260 ? 14 : 10)
-      .map(({ point, radius, p }) => ({
-        id: point.key,
-        x: p.x,
-        y: p.y,
-        text: shortText(point.name, width > 1400 ? 30 : 22),
-        fontSize: labelFont,
-        nodeRadius: radius + 4,
-        selected: point.selected,
-        midX: width / 2,
-        midY: height / 2
-      }));
-    const regionNodeBoxes = pointVisuals.map(({ radius, p }) => ({
-      x1: p.x - radius - 6,
-      y1: p.y - radius - 6,
-      x2: p.x + radius + 6,
-      y2: p.y + radius + 6
-    }));
-    const regionLabels = placeSmartLabels(regionLabelCandidates, labelBounds, {
-      mode: "region",
-      nodeBoxes: regionNodeBoxes
-    });
-
-    const pointHtml = pointVisuals.map(({ point, color, radius, p }) => {
+      const showLabel = labelPoints.includes(point);
+      const dx = showLabel ? (index % 2 === 0 ? 14 : -14) : 0;
+      const dy = showLabel ? (index % 3 === 0 ? -16 : 18) : 0;
+      const labelX = clamp(p.x + dx, 18, width - 18);
+      const labelY = clamp(p.y + dy, 20, height - 12);
+      const anchor = dx < 0 ? "end" : "start";
+      const label = showLabel
+        ? `
+          <line x1="${p.x}" y1="${p.y}" x2="${labelX}" y2="${labelY - 4}" stroke="${withAlpha(color, "88")}" stroke-width="1" />
+          <text class="chart-label" x="${labelX}" y="${labelY}" text-anchor="${anchor}" font-size="${labelFont}">${esc(shortText(point.name, width > 1200 ? 28 : 20))}</text>
+        `
+        : "";
       return `
         <g class="region-node" data-entity="${esc(point.entityId || "")}">
           <circle cx="${p.x}" cy="${p.y}" r="${radius + 4}" fill="${withAlpha(color, "22")}" />
           <circle cx="${p.x}" cy="${p.y}" r="${radius}" fill="${color}" stroke="${point.selected ? "#ffffff" : "rgba(255,255,255,.32)"}" stroke-width="${point.selected ? 2 : 1.1}" />
           <title>${esc(point.name)}&#10;${esc(displayStage(point.dominantStage))} | ${esc(displayCountry(point.country))}&#10;${esc(safeText(point.place, "未标注地点"))}</title>
+          ${label}
         </g>
       `;
     }).join("");
-    const labelHtml = regionLabels.map((label) => labelGroupHtml(label)).join("");
 
     svg.innerHTML = `
       <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(3,9,17,.34)"></rect>
       ${gridLines.join("")}
       ${linkHtml}
       ${pointHtml}
-      ${labelHtml}
       <text class="chart-sub-label" x="${paddingX}" y="${height - 14}" font-size="${metaFont}">说明：点击节点查看实体，点击连线查看关系证据。</text>
     `;
   }
 
   function buildChainModel(context) {
     const seedTxs = context.mode === "entity" || context.mode === "transaction"
-      ? context.focus
+      ? (context.entity ? context.chainFocus : context.focus)
       : (cameraFocusedTransactions(context.base, cameraRadiusKm(state.view.altitude, 0.9)).length
           ? cameraFocusedTransactions(context.base, cameraRadiusKm(state.view.altitude, 0.9))
           : context.focus);
@@ -1318,7 +1467,7 @@
 
     const nodeMap = new Map();
     const edgeMap = new Map();
-    const limit = context.entity ? 180 : 120;
+    const limit = context.entity ? Math.max(seedTxs.length, 1) : 120;
     const stride = seedTxs.length > limit ? Math.ceil(seedTxs.length / limit) : 1;
 
     seedTxs.forEach((tx, index) => {
@@ -1327,16 +1476,34 @@
 
       const source = sideNodeFromTx(tx, "source");
       const target = sideNodeFromTx(tx, "target");
-      const sourceKey = `${source.key}::${source.stage}`;
-      const targetKey = `${target.key}::${target.stage}`;
+      const sourceKey = `${source.chainKey || source.key}::${source.stage}`;
+      const targetKey = `${target.chainKey || target.key}::${target.stage}`;
 
-      if (!nodeMap.has(sourceKey)) nodeMap.set(sourceKey, { ...source, graphKey: sourceKey, count: 0, selected: false });
-      if (!nodeMap.has(targetKey)) nodeMap.set(targetKey, { ...target, graphKey: targetKey, count: 0, selected: false });
+      if (!nodeMap.has(sourceKey)) {
+        nodeMap.set(sourceKey, {
+          ...source,
+          entityId: source.chainEntityId || source.entityId,
+          name: source.chainName || source.name,
+          graphKey: sourceKey,
+          count: 0,
+          selected: false
+        });
+      }
+      if (!nodeMap.has(targetKey)) {
+        nodeMap.set(targetKey, {
+          ...target,
+          entityId: target.chainEntityId || target.entityId,
+          name: target.chainName || target.name,
+          graphKey: targetKey,
+          count: 0,
+          selected: false
+        });
+      }
 
       nodeMap.get(sourceKey).count += 1;
       nodeMap.get(targetKey).count += 1;
-      nodeMap.get(sourceKey).selected = nodeMap.get(sourceKey).selected || source.entityId === state.selectedEntityId;
-      nodeMap.get(targetKey).selected = nodeMap.get(targetKey).selected || target.entityId === state.selectedEntityId;
+      nodeMap.get(sourceKey).selected = nodeMap.get(sourceKey).selected || (source.chainEntityId || source.entityId) === state.selectedEntityId;
+      nodeMap.get(targetKey).selected = nodeMap.get(targetKey).selected || (target.chainEntityId || target.entityId) === state.selectedEntityId;
 
       const edgeKey = `${sourceKey}>>${targetKey}`;
       if (!edgeMap.has(edgeKey)) edgeMap.set(edgeKey, { sourceKey, targetKey, count: 0, txId: tx.id, selected: false });
@@ -1371,9 +1538,8 @@
     const model = buildChainModel(context);
     const svg = byId("chainSvg");
     const baseViewport = getSvgViewport(svg, 980, 320);
-    const maxStageNodes = Math.max(...model.stages.map((stage) => model.nodes.filter((node) => node.stage === stage).length), 1);
-    const width = Math.max(baseViewport.width, Math.max(1420, model.stages.length * 150 + 240));
-    const height = Math.max(baseViewport.height, Math.min(520, 248 + maxStageNodes * 38));
+    const width = Math.max(baseViewport.width, 1320);
+    const height = Math.max(baseViewport.height, 320);
     const stageFont = clamp(Math.round(height * 0.05), 12, 16);
     const nodeFont = clamp(Math.round(height * 0.04), 11, 14);
     const metaFont = clamp(Math.round(height * 0.034), 10, 12);
@@ -1389,7 +1555,7 @@
 
     const stageNodes = new Map();
     model.stages.forEach((stage) => stageNodes.set(stage, model.nodes.filter((node) => node.stage === stage)));
-    const xPadding = 96;
+    const xPadding = 92;
     const top = 92;
     const bottom = 78;
     const stageStep = model.stages.length > 1 ? (width - xPadding * 2) / (model.stages.length - 1) : 0;
@@ -1437,70 +1603,20 @@
       `;
     }).join("");
 
-    const positionedNodes = [...positioned.values()];
-    const chainLabelBounds = {
-      minX: 18,
-      minY: 48,
-      maxX: width - 18,
-      maxY: height - 20
-    };
-    const chainNodeBoxes = positionedNodes.map((node) => ({
-      x1: node.x - 18,
-      y1: node.y - 18,
-      x2: node.x + 18,
-      y2: node.y + 18
-    }));
-    const stageLabelRanks = new Map();
-    positionedNodes.forEach((node) => {
-      const list = stageLabelRanks.get(node.stage) || [];
-      list.push(node);
-      stageLabelRanks.set(node.stage, list);
-    });
-    stageLabelRanks.forEach((list, stage) => {
-      list.sort((a, b) => Number(b.selected) - Number(a.selected) || b.count - a.count || a.name.localeCompare(b.name));
-      list.forEach((node, index) => {
-        node.stageRank = index;
-        node.stageSize = list.length;
-      });
-    });
-    const chainLabelCandidates = positionedNodes
-      .filter((node) => node.selected || node.count > 1 || node.stageRank < 2)
-      .sort((a, b) => Number(b.selected) - Number(a.selected) || b.count - a.count || a.stageRank - b.stageRank)
-      .slice(0, width > 1700 ? 28 : width > 1450 ? 22 : 16)
-      .map((node) => ({
-        id: node.graphKey,
-        x: node.x,
-        y: node.y,
-        text: shortText(node.name, width > 1500 ? 22 : 18),
-        fontSize: nodeFont,
-        nodeRadius: node.selected ? 17 : 15,
-        selected: node.selected,
-        midX: width / 2,
-        midY: height / 2
-      }));
-    const chainLabels = placeSmartLabels(chainLabelCandidates, chainLabelBounds, {
-      mode: "chain",
-      nodeBoxes: chainNodeBoxes
-    });
-
-    const nodeHtml = positionedNodes.map((node) => {
+    const nodeHtml = [...positioned.values()].map((node) => {
       const color = stageColor(node.stage);
-      const countText = (node.selected || node.count > 1)
-        ? `<text class="chart-sub-label" x="${node.x}" y="${node.y + 31}" text-anchor="middle" font-size="${metaFont}">${fmt.format(node.count)} 条</text>`
-        : "";
       return `
         <g class="chain-node" data-entity="${esc(node.entityId || "")}">
           <circle cx="${node.x}" cy="${node.y}" r="${node.selected ? 17 : 15}" fill="${withAlpha(color, "22")}" stroke="${color}" stroke-width="1.2"></circle>
           <circle cx="${node.x}" cy="${node.y}" r="${node.selected ? 7.5 : 6.2}" fill="${color}" stroke="${node.selected ? "#fff" : "none"}" stroke-width="1.6"></circle>
-          ${countText}
+          <text class="chart-label" x="${node.x}" y="${node.y - 24}" text-anchor="middle" font-size="${nodeFont}">${esc(shortText(node.name, 18))}</text>
           <title>${esc(node.name)}&#10;${esc(displayStage(node.stage))} | ${esc(displayCountry(node.country))}&#10;${esc(safeText(node.place, "未标注地点"))}</title>
         </g>
       `;
     }).join("");
-    const chainLabelHtml = chainLabels.map((label) => labelGroupHtml(label)).join("");
 
     byId("chainMeta").textContent = context.entity
-      ? `围绕 ${context.entity.name} 展开的多类别节点关系`
+      ? `围绕 ${entityTitle(context.entity.id, context.entity.name)} 展开的多类别节点关系`
       : (context.mode === "camera" ? "当前视角区域内的多类别节点关系" : "按供应链环节分层展开");
     byId("chainCaption").textContent = `当前图谱共展示 ${fmt.format(model.nodes.length)} 个节点、${fmt.format(model.edges.length)} 条关系。节点颜色代表所属环节类别，点击节点或连线可继续钻取。`;
     svg.innerHTML = `
@@ -1508,13 +1624,13 @@
       ${stageGuides}
       ${edgeHtml}
       ${nodeHtml}
-      ${chainLabelHtml}
       <text class="chart-sub-label" x="${xPadding}" y="${height - 12}" font-size="${metaFont}">说明：颜色表示环节类别；点击节点或连线可在右侧与证据链中联动。</text>
     `;
   }
 
   function buildHierarchyGroups(entity, list, direction) {
     const groups = new Map();
+    const scope = graphSeedEntityIds(entity.id);
     list.forEach((tx) => {
       let include = false;
       let stage = "";
@@ -1523,7 +1639,7 @@
       let counterpartCountry = "";
       let route = "";
 
-      if (direction === "upstream" && (tx.buyerCompanyId === entity.id || tx.buyerFacilityId === entity.id)) {
+      if (direction === "upstream" && (scope.has(tx.buyerCompanyId) || scope.has(tx.buyerFacilityId))) {
         include = true;
         stage = tx.supplierStage;
         counterpartId = tx.supplierFacilityId || tx.supplierCompanyId || "";
@@ -1532,7 +1648,7 @@
         route = `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`;
       }
 
-      if (direction === "downstream" && (tx.supplierCompanyId === entity.id || tx.supplierFacilityId === entity.id)) {
+      if (direction === "downstream" && (scope.has(tx.supplierCompanyId) || scope.has(tx.supplierFacilityId))) {
         include = true;
         stage = tx.buyerStage;
         counterpartId = tx.buyerFacilityId || tx.buyerCompanyId || "";
@@ -1605,7 +1721,7 @@
 
     const upstream = buildHierarchyGroups(context.entity, context.focus, "upstream");
     const downstream = buildHierarchyGroups(context.entity, context.focus, "downstream");
-    byId("hierarchyMeta").textContent = `围绕 ${context.entity.name} 展开`;
+    byId("hierarchyMeta").textContent = `围绕 ${entityTitle(context.entity.id, context.entity.name)} 展开`;
     body.innerHTML = `
       <div class="hierarchy-columns">
         ${hierarchyColumnHtml("上游", upstream)}
@@ -1732,6 +1848,42 @@
     return { lat, lng: normalizeLon(lng), altitude };
   }
 
+  function topOverlayInsetPx() {
+    return [".topbar", ".search-panel", ".info-panel"].reduce((maxBottom, selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return maxBottom;
+      const style = window.getComputedStyle(element);
+      if (!["fixed", "absolute"].includes(style.position)) return maxBottom;
+      return Math.max(maxBottom, Math.round(element.getBoundingClientRect().bottom));
+    }, 24);
+  }
+
+  function bottomOverlayInsetPx() {
+    const dock = document.querySelector(".dock");
+    if (!dock) return 0;
+    const style = window.getComputedStyle(dock);
+    if (!["fixed", "absolute"].includes(style.position)) return 0;
+    const rect = dock.getBoundingClientRect();
+    return Math.max(0, Math.round(window.innerHeight - rect.top));
+  }
+
+  function globeViewportOffset() {
+    const width = globeHost?.clientWidth || window.innerWidth;
+    const height = globeHost?.clientHeight || window.innerHeight;
+    if (width < 1180 || height < 760) return [0, 0];
+    const bottomInset = bottomOverlayInsetPx();
+    if (!bottomInset) return [0, 0];
+    const desiredCenterY = clamp(height / 2 - bottomInset * 0.38, height * 0.23, height * 0.39);
+    return [0, Math.round(desiredCenterY - height / 2)];
+  }
+
+  function applyGlobeLayoutOffset() {
+    const [, offsetY] = globeViewportOffset();
+    document.documentElement.style.setProperty("--globe-offset-y", `${offsetY}px`);
+    if (!globe || typeof globe.globeOffset !== "function") return;
+    globe.globeOffset([0, offsetY]);
+  }
+
   function setPointOfView(view, duration = 900) {
     if (!globe || !view) return;
     state.suppressViewSync = true;
@@ -1850,8 +2002,10 @@
       new ResizeObserver(() => {
         if (!globe) return;
         globe.width(globeHost.clientWidth || window.innerWidth).height(globeHost.clientHeight || window.innerHeight);
+        applyGlobeLayoutOffset();
       }).observe(globeHost);
 
+      applyGlobeLayoutOffset();
       globe.pointOfView(state.view, 0);
       setGlobeState("webgl", "");
       return globe;
@@ -1867,6 +2021,7 @@
     if (!g) return;
 
     try {
+      applyGlobeLayoutOffset();
       const data = buildGlobeData(context);
       g.pointsData(data.points)
         .pointLat("lat")
@@ -1925,10 +2080,10 @@
 
   function renderStatus(context) {
     byId("queryMeta").textContent = context.entity
-      ? `已锁定：${context.entity.name}`
+      ? `已锁定：${entityTitle(context.entity.id, context.entity.name)}`
       : (context.mode === "camera" ? "当前视角区域" : "全链路视角");
     byId("statusText").textContent = context.entity
-      ? `围绕 ${context.entity.name} 显示 ${fmt.format(context.focus.length)} 条关系`
+      ? `围绕 ${entityTitle(context.entity.id, context.entity.name)} 显示 ${fmt.format(context.focus.length)} 条关系`
       : `当前显示 ${fmt.format(context.focus.length)} 条关系`;
 
     byId("chips").innerHTML = [
@@ -1936,7 +2091,7 @@
       `视角 ${state.view.lat.toFixed(1)}°, ${state.view.lng.toFixed(1)}°`,
       `影像 ${TEXTURES[state.texture].label}`,
       state.stage !== "all" ? `环节 ${displayStage(state.stage)}` : "",
-      context.entity ? `实体 ${context.entity.name}` : "",
+      context.entity ? `实体 ${entityTitle(context.entity.id, context.entity.name)}` : "",
       state.globeMode === "fallback" ? "地球 底图模式" : ""
     ].filter(Boolean).map((item) => `<span class="chip">${esc(item)}</span>`).join("");
 
@@ -1978,16 +2133,19 @@
     state.selectedEntityId = "";
     state.selectedTxId = "";
     state.evidenceOpen = false;
+    state.regionOpen = false;
     state.stage = "all";
     state.labels = true;
     state.dense = false;
     state.autoRotate = true;
-    state.view = { lat: 16, lng: 102, altitude: 2.35 };
+    state.view = { lat: 16, lng: 102, altitude: 3.08 };
     byId("searchInput").value = "";
     byId("stageSelect").value = "all";
     byId("labelsBtn").classList.add("is-on");
     byId("densityBtn").classList.remove("is-on");
     byId("rotateBtn").classList.add("is-on");
+    setEvidenceVisibility(false);
+    setRegionVisibility(false);
     renderAll({ recenter: true, updateGlobe: true });
   }
 
@@ -2066,7 +2224,10 @@
     state.selectedEntityId = "";
     state.selectedTxId = "";
     state.evidenceOpen = false;
+    state.regionOpen = false;
     byId("searchInput").value = "";
+    setEvidenceVisibility(false);
+    setRegionVisibility(false);
     renderAll({ recenter: false, updateGlobe: true });
   });
 
@@ -2081,6 +2242,18 @@
 
   byId("evidenceBackdrop").addEventListener("click", () => {
     setEvidenceVisibility(false);
+  });
+
+  byId("openRegionBtn").addEventListener("click", () => {
+    setRegionVisibility(true);
+  });
+
+  byId("closeRegionBtn").addEventListener("click", () => {
+    setRegionVisibility(false);
+  });
+
+  byId("regionBackdrop").addEventListener("click", () => {
+    setRegionVisibility(false);
   });
 
   byId("resetBtn").addEventListener("click", resetAll);

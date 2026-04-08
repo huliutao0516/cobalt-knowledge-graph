@@ -14,6 +14,7 @@
   --shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
   --earth-fallback-image: none;
   --earth-image-position: 18% 50%;
+  --globe-offset-y: 0px;
 }
 
 * {
@@ -80,10 +81,10 @@ body::before {
 #earthFallback {
   position: absolute;
   left: 50%;
-  top: 49%;
-  width: clamp(380px, 34vw, 760px);
+  top: 50%;
+  width: clamp(300px, 28vw, 620px);
   aspect-ratio: 1 / 1;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, calc(-50% + var(--globe-offset-y)));
   pointer-events: auto;
   z-index: 2;
   opacity: 1;
@@ -92,10 +93,10 @@ body::before {
 }
 
 body.globe-ready #earthFallback {
-  opacity: 0.24;
-  transform: translate(-50%, -50%) scale(0.95);
+  opacity: 0.76;
+  transform: translate(-50%, calc(-50% + var(--globe-offset-y)));
   pointer-events: none;
-  filter: saturate(0.88);
+  filter: saturate(0.94);
 }
 
 #earthFallback.is-dragging {
@@ -124,10 +125,9 @@ body.globe-ready #earthFallback {
   background:
     radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 25%),
     radial-gradient(circle at 70% 68%, rgba(2, 8, 16, 0.92), rgba(2, 8, 16, 0.22) 42%, rgba(2, 8, 16, 0) 62%),
-    var(--earth-fallback-image),
     linear-gradient(180deg, #17365f 0%, #07111d 100%);
-  background-size: auto, auto, 200% 100%, cover;
-  background-position: center, center, var(--earth-image-position), center;
+  background-size: auto, auto, cover;
+  background-position: center, center, center;
   background-repeat: no-repeat;
   box-shadow:
     0 0 0 1px rgba(141, 221, 255, 0.14),
@@ -135,6 +135,17 @@ body.globe-ready #earthFallback {
     inset -34px -44px 76px rgba(2, 8, 16, 0.58),
     inset 18px 12px 44px rgba(255, 255, 255, 0.08);
   animation: earthSpin 88s linear infinite;
+}
+
+.earth-texture {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.92;
+  transform: scale(1.08);
+  filter: saturate(1.08) contrast(1.02) brightness(0.92);
 }
 
 .earth-cloud,
@@ -201,39 +212,23 @@ body.globe-ready #earthFallback {
 
 .topbar {
   position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  text-align: center;
-  pointer-events: none;
-}
-
-.brand {
-  display: inline-block;
-  padding: 7px 14px;
+  top: 18px;
+  left: 18px;
+  padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid rgba(111, 200, 255, 0.22);
-  background: rgba(5, 14, 26, 0.7);
+  background: rgba(5, 14, 26, 0.76);
   font-size: 12px;
   letter-spacing: 0.12em;
-}
-
-.topbar h1 {
-  margin: 10px 0 0;
-  font-size: 28px;
-  letter-spacing: 0.06em;
-  text-shadow: 0 0 22px rgba(74, 167, 255, 0.28);
-}
-
-.topbar p {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: var(--muted);
+  color: var(--accent-strong);
+  text-align: left;
+  pointer-events: none;
+  box-shadow: 0 0 18px rgba(58, 142, 255, 0.1);
 }
 
 .toolbar {
   position: absolute;
-  top: 118px;
+  top: 104px;
   left: 18px;
   width: 52px;
   padding: 10px 0;
@@ -264,6 +259,10 @@ body.globe-ready #earthFallback {
   box-shadow: 0 0 24px rgba(58, 142, 255, 0.12);
 }
 
+.is-hidden {
+  display: none !important;
+}
+
 .focus-title {
   font-size: 15px;
   font-weight: 700;
@@ -278,7 +277,7 @@ body.globe-ready #earthFallback {
 
 .search-panel {
   position: absolute;
-  top: 114px;
+  top: 102px;
   left: 82px;
   width: 360px;
   height: min(48vh, 620px);
@@ -286,7 +285,7 @@ body.globe-ready #earthFallback {
 
 .info-panel {
   position: absolute;
-  top: 114px;
+  top: 102px;
   right: 24px;
   width: 430px;
   height: min(58vh, 760px);
@@ -299,7 +298,7 @@ body.globe-ready #earthFallback {
   bottom: 24px;
   height: min(34vh, 420px);
   display: grid;
-  grid-template-columns: minmax(360px, 1.05fr) minmax(440px, 1.4fr) 430px;
+  grid-template-columns: minmax(760px, 1.85fr) 430px;
   gap: 18px;
 }
 
@@ -310,13 +309,11 @@ body.globe-ready #earthFallback {
   overflow: auto;
 }
 
-.region-panel,
 .chain-panel,
 .hierarchy-panel {
   min-width: 0;
 }
 
-.region-panel .panel-body,
 .chain-panel .panel-body {
   height: calc(100% - 48px);
   display: flex;
@@ -334,6 +331,34 @@ body.globe-ready #earthFallback {
 
 .graph-scroll svg {
   min-height: 100%;
+}
+
+.region-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  background: rgba(1, 6, 14, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.region-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 7;
+  width: min(78vw, 1080px);
+  height: min(66vh, 760px);
+  transform: translate(-50%, -50%);
+}
+
+.region-body {
+  height: calc(100% - 48px);
+  display: flex;
+  flex-direction: column;
+}
+
+.region-body .graph-scroll {
+  min-height: 320px;
 }
 
 .hierarchy-panel .panel-body {
@@ -974,17 +999,6 @@ svg {
   font-weight: 600;
 }
 
-.chart-label-box {
-  fill: rgba(6, 14, 24, 0.9);
-  stroke: rgba(111, 200, 255, 0.2);
-  stroke-width: 1;
-}
-
-.chart-pointer {
-  stroke: rgba(111, 200, 255, 0.34);
-  stroke-width: 1.1;
-}
-
 .chart-sub-label {
   fill: #9eb4cb;
   stroke: rgba(3, 12, 22, 0.84);
@@ -1003,7 +1017,7 @@ svg {
 
 @media (max-width: 1680px) {
   .dock {
-    grid-template-columns: minmax(320px, 1fr) minmax(360px, 1.1fr) 380px;
+    grid-template-columns: minmax(640px, 1.7fr) 380px;
   }
 
   .info-panel {
@@ -1012,21 +1026,12 @@ svg {
 }
 
 @media (max-width: 1480px) {
-  .focus-chip {
-    max-width: 48vw;
-  }
-
   .dock {
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      "region chain"
+      "chain chain"
       "hierarchy hierarchy";
     height: auto;
-  }
-
-  .region-panel {
-    grid-area: region;
-    min-height: 290px;
   }
 
   .chain-panel {
@@ -1041,6 +1046,10 @@ svg {
 
   .evidence-modal {
     width: min(92vw, 1120px);
+  }
+
+  .region-modal {
+    width: min(92vw, 1080px);
   }
 
   .evidence-body {
@@ -1069,11 +1078,10 @@ svg {
 
   #earthFallback {
     top: 29vh;
-    width: min(70vw, 560px);
+    width: min(62vw, 500px);
   }
 
   .topbar,
-  .focus-chip,
   .search-panel,
   .info-panel,
   .dock {
@@ -1096,10 +1104,6 @@ svg {
     display: none;
   }
 
-  .focus-chip {
-    margin-top: calc(56vh + 18px);
-  }
-
   .search-panel,
   .info-panel {
     height: auto;
@@ -1112,7 +1116,6 @@ svg {
     gap: 16px;
   }
 
-  .region-panel,
   .chain-panel,
   .hierarchy-panel {
     min-height: 300px;
@@ -1136,9 +1139,27 @@ svg {
     position: fixed;
   }
 
+  .region-modal {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    width: calc(100% - 32px);
+    height: auto;
+    margin: 0 16px 16px;
+  }
+
+  .region-backdrop {
+    position: fixed;
+  }
+
   .evidence-body {
     grid-template-columns: 1fr;
     height: auto;
+  }
+
+  .region-body .graph-scroll {
+    min-height: 300px;
   }
 
   .evidence-column,

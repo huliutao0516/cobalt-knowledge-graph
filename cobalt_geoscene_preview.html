@@ -14,6 +14,7 @@
   <div id="earthFallback" aria-hidden="true">
     <div class="earth-aura"></div>
     <div class="earth-sphere">
+      <img class="earth-texture" src="assets/earth_github_4096.jpg" alt="">
       <div class="earth-cloud"></div>
       <div class="earth-shade"></div>
       <div class="earth-specular"></div>
@@ -22,11 +23,7 @@
 </div>
 
 <div id="app">
-  <header class="topbar">
-    <div class="brand">KNOWLEDGE GRAPH PLATFORM</div>
-    <h1>钴全球供应链知识图谱平台</h1>
-    <p>GeoScene 风格总览、区域映射、分层链路和关系明细联动展示</p>
-  </header>
+  <header class="topbar">钴供应链图谱</header>
 
   <aside class="toolbar panel">
     <button id="resetBtn" title="重置筛选">复</button>
@@ -34,12 +31,12 @@
     <button id="zoomOutBtn" title="缩小">-</button>
     <button id="labelsBtn" class="is-on" title="标签开关">标</button>
     <button id="densityBtn" title="关系密度">密</button>
-    <button id="rotateBtn" class="is-on" title="自动旋转">转</button>
+    <button id="rotateBtn" class="is-on" title="自动旋转">旋</button>
   </aside>
 
-  <div class="focus-chip panel">
+  <div class="focus-chip panel is-hidden" aria-hidden="true">
     <div id="focusTitle" class="focus-title">全球总览</div>
-    <div id="focusSub" class="focus-sub">拖动或缩放地球后，底部区域映射会自动跟随当前视角</div>
+    <div id="focusSub" class="focus-sub">拖动或缩放地球后，区域映射会跟随当前视角更新。</div>
   </div>
 
   <section class="panel search-panel">
@@ -109,24 +106,13 @@
   </section>
 
   <div class="dock">
-    <section class="panel region-panel">
-      <div class="panel-head">
-        <span>区域映射</span>
-        <span id="regionMeta" class="meta">当前视角区域内的空间落点</span>
-      </div>
-      <div class="panel-body">
-        <div id="regionCaption" class="subnote"></div>
-        <div id="regionStats" class="chips compact-top"></div>
-        <div id="regionScroll" class="graph-scroll">
-          <svg id="regionSvg" viewBox="0 0 1100 560" preserveAspectRatio="none"></svg>
-        </div>
-      </div>
-    </section>
-
     <section class="panel chain-panel">
       <div class="panel-head">
         <span>知识图谱</span>
-        <span id="chainMeta" class="meta">按供应链环节分层展开</span>
+        <div class="panel-head-actions">
+          <button id="openRegionBtn" class="mini-btn" type="button">区域映射</button>
+          <span id="chainMeta" class="meta">按供应链环节分层展开</span>
+        </div>
       </div>
       <div class="panel-body">
         <div id="chainCaption" class="subnote"></div>
@@ -146,6 +132,8 @@
   </div>
 
   <div id="evidenceBackdrop" class="evidence-backdrop is-hidden"></div>
+  <div id="regionBackdrop" class="region-backdrop is-hidden"></div>
+
   <section id="evidenceModal" class="panel evidence-modal is-hidden" aria-hidden="true">
     <div class="panel-head">
       <span>证据链条</span>
@@ -170,6 +158,23 @@
         </div>
         <div id="evidenceDownstream" class="evidence-list"></div>
       </section>
+    </div>
+  </section>
+
+  <section id="regionModal" class="panel region-modal is-hidden" aria-hidden="true">
+    <div class="panel-head">
+      <span>区域映射</span>
+      <div class="panel-head-actions">
+        <span id="regionMeta" class="meta">当前视角区域内的空间落点</span>
+        <button id="closeRegionBtn" class="ghost-btn" type="button">关闭</button>
+      </div>
+    </div>
+    <div class="panel-body region-body">
+      <div id="regionCaption" class="subnote"></div>
+      <div id="regionStats" class="chips compact-top"></div>
+      <div id="regionScroll" class="graph-scroll">
+        <svg id="regionSvg" viewBox="0 0 1100 560" preserveAspectRatio="none"></svg>
+      </div>
     </div>
   </section>
 
