@@ -1080,6 +1080,10 @@
     modal.classList.toggle("is-hidden", !visible);
     backdrop.classList.toggle("is-hidden", !visible);
     modal.setAttribute("aria-hidden", visible ? "false" : "true");
+    const controls = globe?.controls ? globe.controls() : null;
+    if (controls) {
+      controls.autoRotate = state.autoRotate && !state.selectedEntityId && !state.selectedTxId && !visible;
+    }
     if (visible) {
       window.requestAnimationFrame(() => renderRegion(computeContext()));
     }
@@ -2276,7 +2280,7 @@
         .htmlElementsData(data.labels);
 
       const controls = g.controls ? g.controls() : null;
-      if (controls) controls.autoRotate = state.autoRotate && !state.selectedEntityId && !state.selectedTxId;
+      if (controls) controls.autoRotate = state.autoRotate && !state.selectedEntityId && !state.selectedTxId && !state.regionOpen;
 
       if (recenter) {
         const targetView = computeFocusView(context) || state.view;
