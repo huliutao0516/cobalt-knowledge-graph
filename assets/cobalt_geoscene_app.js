@@ -37,6 +37,27 @@
     const text = safeText(value, "未命名");
     return text.length > limit ? `${text.slice(0, Math.max(1, limit - 1))}…` : text;
   };
+  const shortTextMiddle = (value, limit = 24, tail = 10) => {
+    const text = safeText(value, "未命名");
+    if (text.length <= limit) return text;
+    const safeTail = Math.max(4, Math.min(tail, limit - 5));
+    const head = Math.max(3, limit - safeTail - 1);
+    return `${text.slice(0, head)}…${text.slice(-safeTail)}`;
+  };
+  const visualTextUnits = (value) => [...String(value || "")].reduce((total, char) => {
+    if (/[\u4e00-\u9fa5]/.test(char)) return total + 1.06;
+    if (/\s/.test(char)) return total + 0.34;
+    if (/[A-Z0-9]/.test(char)) return total + 0.7;
+    return total + 0.62;
+  }, 0);
+  const estimateLabelWidth = (value, fontSize = 16, padding = 20) =>
+    Math.max(44, Math.round(visualTextUnits(value) * fontSize * 0.72 + padding));
+  const rectsOverlap = (a, b, padding = 0) => !(
+    a.right + padding <= b.left
+    || a.left >= b.right + padding
+    || a.bottom + padding <= b.top
+    || a.top >= b.bottom + padding
+  );
   const withAlpha = (hex, alpha = "ff") => {
     const text = String(hex || "").trim();
     if (/^#[0-9a-fA-F]{6}$/.test(text)) return `${text}${alpha}`;
@@ -147,6 +168,11 @@
 
   const stageOrder = DATA.stageOrder || [];
   const stageColors = DATA.stageColors || {};
+  const stageColorOverrides = {
+    "Artisanal mining": "#42d6c4",
+    "Electric car manufacturing": "#68a8ff",
+    "Electric scooter manufacturing": "#f3ead8"
+  };
   const stageLookup = new Map(stageOrder.map((stage) => [String(stage).toLowerCase(), stage]));
 
   const entities = new Map((DATA.entities || []).map((entity) => [entity.id, entity]));
@@ -227,6 +253,8 @@
   const txByEntity = new Map();
   const txBySupplierEntity = new Map();
   const txByBuyerEntity = new Map();
+  const txBySupplierStageNode = new Map();
+  const txByBuyerStageNode = new Map();
 
   const pushMapArray = (map, key, value) => {
     if (!key) return;
@@ -245,6 +273,12 @@
     });
     [tx.supplierCompanyId, tx.supplierFacilityId].filter(Boolean).forEach((id) => pushMapArray(txBySupplierEntity, id, tx));
     [tx.buyerCompanyId, tx.buyerFacilityId].filter(Boolean).forEach((id) => pushMapArray(txByBuyerEntity, id, tx));
+    [tx.supplierCompanyId && `${tx.supplierCompanyId}::${tx.supplierStage}`, tx.supplierFacilityId && `${tx.supplierFacilityId}::${tx.supplierStage}`]
+      .filter(Boolean)
+      .forEach((id) => pushMapArray(txBySupplierStageNode, id, tx));
+    [tx.buyerCompanyId && `${tx.buyerCompanyId}::${tx.buyerStage}`, tx.buyerFacilityId && `${tx.buyerFacilityId}::${tx.buyerStage}`]
+      .filter(Boolean)
+      .forEach((id) => pushMapArray(txByBuyerStageNode, id, tx));
   });
 
   const searchCatalog = [...entities.values()].map((entity) => ({
@@ -275,8 +309,13 @@
     dense: false,
     autoRotate: true,
     selectedEntityId: "",
+    selectedChainStage: "",
     selectedTxId: "",
     evidenceOpen: false,
+    chainOpen: false,
+    chainFullZoom: 1,
+    chainFullZoomMode: "fit",
+    chainFullVisibleStages: [],
     regionOpen: false,
     view: { lat: 16, lng: 102, altitude: 3.08 },
     textureNotice: "",
@@ -364,6 +403,25 @@
       .trim();
   }
 
+  function conciseEntityName(value) {
+    const text = compactLabelText(value);
+    if (!text) return "";
+
+    const trailingAcronymMatch = text.match(/[（(]([A-Z][A-Z0-9.&/\-]{1,12})[)）]\s*$/);
+    if (trailingAcronymMatch && !/%/.test(trailingAcronymMatch[1])) {
+      return trailingAcronymMatch[1].trim();
+    }
+
+    const bracketMatch = text.match(/^(.+?)\s*[（(]([^()（）]+)[)）]\s*$/);
+    if (!bracketMatch) return text;
+
+    const outside = compactLabelText(bracketMatch[1]);
+    const inside = compactLabelText(bracketMatch[2]);
+    if (!/%/.test(inside) && /^[A-Z][A-Z0-9.&/\-]{1,12}$/.test(inside)) return inside;
+    if (outside) return outside;
+    return outside || text;
+  }
+
   function normalizeLabelKey(value) {
     return compactLabelText(value).toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "");
   }
@@ -404,8 +462,8 @@
       : (entity?.id ? facilityCompany.get(entity.id) || "" : "");
     const ownerEntity = ownerId ? entities.get(ownerId) : null;
     const ownerName = compactLabelText(
-      companyName
-      || ownerEntity?.name
+      conciseEntityName(companyName)
+      || conciseEntityName(ownerEntity?.name)
       || ownerCompanyName(entity)
       || ""
     );
@@ -440,14 +498,16 @@
 
   function preferredEntityLabel(entity, { companyName = "", facilityRaw = "", fallback = "" } = {}) {
     const parsed = parseFacilityText(facilityRaw);
-    const ownerName = companyName || ownerCompanyName(entity);
-    const entityName = compactLabelText(entity?.name || "");
+    const ownerName = conciseEntityName(companyName || ownerCompanyName(entity));
+    const entityName = entity?.type === "company"
+      ? conciseEntityName(entity?.name || "")
+      : compactLabelText(entity?.name || "");
     const displayName = compactLabelText(entity?.displayName || "");
     const entityPlace = compactLabelText(entity?.place || parsed.place || "");
     const typeLabel = displayFacilityType(parsed.type || entity?.facilityType || "");
 
     if (entity?.type === "company") {
-      return compactLabelText(entityName || ownerName || fallback) || "未命名实体";
+      return compactLabelText(entityName || ownerName || conciseEntityName(fallback) || fallback) || "未命名实体";
     }
 
     if (entityName && !looksLikeLocationOnlyLabel(entityName, entityPlace) && !genericFacilityToken(entityName)) {
@@ -480,6 +540,103 @@
     if (typeLabel) return typeLabel;
 
     return compactLabelText(entityName || fallback) || "未命名实体";
+  }
+
+  function pointOwnerName(point) {
+    if (!point?.companyId) return "";
+    return conciseEntityName(entities.get(point.companyId)?.name || "");
+  }
+
+  function regionPointDetail(point) {
+    const entity = point?.entityId ? entities.get(point.entityId) : null;
+    const ownerName = pointOwnerName(point);
+    const entityName = compactLabelText(entity?.name || "");
+    const displayName = compactLabelText(entity?.displayName || "");
+    const placeLabel = shortPlaceLabel(entity?.place || point?.place || "");
+    const candidates = [];
+
+    if (entity?.type === "facility") {
+      if (entityName && !genericFacilityToken(entityName) && normalizeLabelKey(entityName) !== normalizeLabelKey(ownerName)) {
+        candidates.push(entityName);
+      }
+      if (displayName && !genericFacilityToken(displayName) && !looksLikeLocationOnlyLabel(displayName, entity?.place || point?.place || "")) {
+        candidates.push(displayName);
+      }
+      if (placeLabel) candidates.push(placeLabel);
+    } else if (placeLabel) {
+      candidates.push(placeLabel);
+    }
+
+    return dedupeTextList(candidates)[0] || "";
+  }
+
+  function buildRegionPointLabel(point, points, limit = 24) {
+    const composeLabel = (item, includeStage = false) => {
+      const entity = item?.entityId ? entities.get(item.entityId) : null;
+      const baseName = compactLabelText(item?.name || item?.chainName || entity?.name || "");
+      const ownerName = pointOwnerName(item);
+      const detailName = regionPointDetail(item);
+      const placeLabel = shortPlaceLabel(item?.place) || displayCountry(item?.country || "");
+      const typeLabel = displayFacilityType(entity?.facilityType || entity?.displayName || "");
+      const sameOwnerCount = item?.companyId
+        ? points.filter((candidate) => candidate.companyId && candidate.companyId === item.companyId).length
+        : 0;
+      const sameStageOwnerCount = item?.companyId
+        ? points.filter((candidate) => candidate.companyId && candidate.companyId === item.companyId && candidate.dominantStage === item.dominantStage).length
+        : 0;
+      const sameBaseCount = baseName
+        ? points.filter((candidate) => normalizeLabelKey(candidate.name || candidate.chainName || "") === normalizeLabelKey(baseName)).length
+        : 0;
+      const detailKey = normalizeLabelKey(detailName);
+      const typeKey = normalizeLabelKey(typeLabel);
+      const ownerKey = normalizeLabelKey(ownerName);
+      let label = ownerName || baseName || "未命名实体";
+
+      if (entity?.type === "facility" && ownerName) {
+        if (sameOwnerCount > 1 || sameStageOwnerCount > 1) {
+          if (detailName && detailKey && detailKey !== ownerKey) {
+            label = `${ownerName} ${detailName}`;
+          } else {
+            label = ownerName;
+          }
+        } else {
+          label = ownerName;
+        }
+      }
+
+      const sameDetailCount = detailKey
+        ? points.filter((candidate) => normalizeLabelKey(regionPointDetail(candidate)) === detailKey).length
+        : 0;
+      if (entity?.type === "facility" && sameDetailCount > 1 && typeLabel && typeKey) {
+        const labelKey = normalizeLabelKey(label);
+        if (!labelKey.includes(typeKey)) label = `${label} ${typeLabel}`;
+      }
+
+      if (placeLabel) {
+        const placeKey = normalizeLabelKey(placeLabel);
+        const labelKey = normalizeLabelKey(label);
+        if ((sameBaseCount > 1 || sameOwnerCount > 1 || sameStageOwnerCount > 1 || sameDetailCount > 1) && placeKey && labelKey && !labelKey.includes(placeKey)) {
+          label = `${label} ${placeLabel}`;
+        }
+      }
+
+      if (includeStage && item?.dominantStage) {
+        const stageLabel = displayStage(item.dominantStage);
+        const stageKey = normalizeLabelKey(stageLabel);
+        const labelKey = normalizeLabelKey(label);
+        if (stageKey && !labelKey.includes(stageKey)) label = `${label} ${stageLabel}`;
+      }
+
+      return compactLabelText(label);
+    };
+
+    const baseLabel = composeLabel(point, false);
+    const baseKey = normalizeLabelKey(baseLabel);
+    const sameLabelCount = baseKey
+      ? points.filter((item) => normalizeLabelKey(composeLabel(item, false)) === baseKey).length
+      : 0;
+    const finalLabel = sameLabelCount > 1 ? composeLabel(point, true) : baseLabel;
+    return shortTextMiddle(finalLabel, limit, 12);
   }
 
   function sourceLinksForTx(tx) {
@@ -535,7 +692,8 @@
 
   function entityTitle(entityId, fallback = "") {
     const entity = entityId ? entities.get(entityId) : null;
-    return preferredEntityLabel(entity, { fallback });
+    const conciseFallback = conciseEntityName(fallback);
+    return preferredEntityLabel(entity, { fallback: conciseFallback || fallback });
   }
 
   function displayNodeKey(node) {
@@ -584,11 +742,22 @@
     const companyRaw = source ? tx.supplierCompany : tx.buyerCompany;
     const parsed = parseFacilityText(facilityRaw);
     const fallbackName = companyRaw || facilityRaw || "Unknown entity";
-    const chainSubject = chainSubjectIdentity(entity, {
+    const preferredName = preferredEntityLabel(entity, {
       companyName: companyRaw,
       facilityRaw,
-      fallback: fallbackName
+      fallback: companyRaw || facilityRaw || "未命名实体"
     });
+    const chainSubject = entity?.type === "facility" && entity.id === state.selectedEntityId
+      ? {
+          entityId: entity.id,
+          key: entity.id,
+          name: preferredName
+        }
+      : chainSubjectIdentity(entity, {
+          companyName: companyRaw,
+          facilityRaw,
+          fallback: fallbackName
+        });
     return {
       key: entityId || `${source ? "supplier" : "buyer"}:${companyRaw || facilityRaw || tx.id}`,
       entityId,
@@ -603,11 +772,7 @@
       chainEntityId: chainSubject.entityId,
       chainKey: chainSubject.key,
       chainName: chainSubject.name,
-      name: preferredEntityLabel(entity, {
-        companyName: companyRaw,
-        facilityRaw,
-        fallback: companyRaw || facilityRaw || "未命名实体"
-      })
+      name: preferredName
     };
   }
 
@@ -638,30 +803,77 @@
     return entityScopeIds(entityId, { includeCompanyFacilities: true, includeOwnerCompany: false });
   }
 
+  function txSideMatchesEntity(tx, side, entityId) {
+    if (!entityId) return false;
+    const supplierSide = side === "supplier";
+    const companyId = supplierSide ? tx.supplierCompanyId : tx.buyerCompanyId;
+    const facilityId = supplierSide ? tx.supplierFacilityId : tx.buyerFacilityId;
+    const entity = entities.get(entityId);
+
+    if (entity?.type === "facility") return facilityId === entityId;
+    if (companyId === entityId) return true;
+    if (entity?.type !== "company") return facilityId === entityId;
+    if (!facilityId || !graphSeedEntityIds(entityId).has(facilityId)) return false;
+
+    // Some facilities are reused across companies in the raw data.
+    // For company-mode matching, only treat a facility hit as valid when
+    // the company on that side is the selected company or is missing.
+    return !companyId || companyId === entityId;
+  }
+
+  function txTouchesEntity(tx, entityId) {
+    return txSideMatchesEntity(tx, "supplier", entityId) || txSideMatchesEntity(tx, "buyer", entityId);
+  }
+
+  function matchesEntitySelection(point, entityId) {
+    if (!entityId || !point) return false;
+    return [point.entityId, point.chainEntityId, point.companyId, point.facilityId]
+      .filter(Boolean)
+      .includes(entityId);
+  }
+
+  function matchesSelectedEntity(point) {
+    return matchesEntitySelection(point, state.selectedEntityId);
+  }
+
   function stageFilteredTransactions() {
     if (state.stage === "all") return transactions;
     return transactions.filter((tx) => tx.supplierStage === state.stage || tx.buyerStage === state.stage);
   }
 
   function entityFocusedTransactions(base, entityId) {
-    const scopedIds = graphSeedEntityIds(entityId);
-    return base.filter((tx) =>
-      scopedIds.has(tx.supplierCompanyId)
-      || scopedIds.has(tx.buyerCompanyId)
-      || scopedIds.has(tx.supplierFacilityId)
-      || scopedIds.has(tx.buyerFacilityId)
-    );
+    return base.filter((tx) => txTouchesEntity(tx, entityId));
   }
 
-  function txEntityIds(tx, side) {
-    return uniqueValues(side === "supplier"
-      ? [tx.supplierCompanyId, tx.supplierFacilityId]
-      : [tx.buyerCompanyId, tx.buyerFacilityId]);
+  function txEntityIds(tx, side, options = {}) {
+    const { includeFacilities = true } = options;
+    const ids = side === "supplier"
+      ? [tx.supplierCompanyId, includeFacilities ? tx.supplierFacilityId : ""]
+      : [tx.buyerCompanyId, includeFacilities ? tx.buyerFacilityId : ""];
+    return uniqueValues(ids);
   }
 
-  function expandEntityChainTransactions(base, entityId, maxDepth = 7) {
+  function txStageNodeIds(tx, side, options = {}) {
+    const { includeFacilities = true } = options;
+    const stage = side === "supplier" ? tx.supplierStage : tx.buyerStage;
+    return txEntityIds(tx, side, { includeFacilities }).map((id) => `${id}::${stage}`);
+  }
+
+  function expandEntityChainTransactions(base, entityId, options = {}) {
+    const {
+      maxDepth = 7,
+      startStage = "",
+      includeFacilities = null
+    } = options;
     const allowedTxIds = new Set(base.map((tx) => tx.id));
     const collected = new Map();
+    const entity = entities.get(entityId);
+    const useFacilities = includeFacilities ?? (entity?.type === "facility");
+    const stageFilter = String(startStage || "");
+    const touchesSelectedStage = (tx, side) => {
+      if (!stageFilter) return true;
+      return side === "supplier" ? tx.supplierStage === stageFilter : tx.buyerStage === stageFilter;
+    };
 
     const walk = (seedIds, indexMap, nextSide) => {
       const seen = new Set(seedIds);
@@ -674,7 +886,7 @@
           (indexMap.get(entityKey) || []).forEach((tx) => {
             if (!allowedTxIds.has(tx.id)) return;
             if (!collected.has(tx.id)) collected.set(tx.id, tx);
-            txEntityIds(tx, nextSide).forEach((nextId) => {
+            txStageNodeIds(tx, nextSide, { includeFacilities: useFacilities }).forEach((nextId) => {
               if (!nextId || seen.has(nextId)) return;
               seen.add(nextId);
               nextFrontier.push(nextId);
@@ -686,9 +898,25 @@
       }
     };
 
-    const seedIds = graphSeedEntityIds(entityId);
-    walk(seedIds, txBySupplierEntity, "buyer");
-    walk(seedIds, txByBuyerEntity, "supplier");
+    const downstreamSeeds = new Set();
+    const upstreamSeeds = new Set();
+
+    entityFocusedTransactions(base, entityId).forEach((tx) => {
+      if (!allowedTxIds.has(tx.id)) return;
+      const matchesSupplier = txSideMatchesEntity(tx, "supplier", entityId) && touchesSelectedStage(tx, "supplier");
+      const matchesBuyer = txSideMatchesEntity(tx, "buyer", entityId) && touchesSelectedStage(tx, "buyer");
+      if (!matchesSupplier && !matchesBuyer) return;
+      collected.set(tx.id, tx);
+      if (matchesSupplier) {
+        txStageNodeIds(tx, "buyer", { includeFacilities: useFacilities }).forEach((id) => downstreamSeeds.add(id));
+      }
+      if (matchesBuyer) {
+        txStageNodeIds(tx, "supplier", { includeFacilities: useFacilities }).forEach((id) => upstreamSeeds.add(id));
+      }
+    });
+
+    walk([...downstreamSeeds], txBySupplierStageNode, "buyer");
+    walk([...upstreamSeeds], txByBuyerStageNode, "supplier");
     return [...collected.values()];
   }
 
@@ -753,28 +981,49 @@
     }
 
     if (!focus.length) focus = base;
-    const chainFocus = entity ? expandEntityChainTransactions(base, entity.id) : focus;
+    const chainFocus = entity
+      ? expandEntityChainTransactions(base, entity.id, {
+          startStage: state.selectedChainStage,
+          includeFacilities: entity?.type === "facility"
+        })
+      : focus;
 
     return {
       base,
       focus,
       chainFocus,
       entity,
+      chainStage: state.selectedChainStage,
       tx,
       mode,
       cameraRadiusKm: cameraRadiusKm(state.view.altitude)
     };
   }
 
+  function activeChainSelectionLabel(context) {
+    if (!context?.entity) return "";
+    const entityLabel = entityTitle(context.entity.id, context.entity.name);
+    if (!context.chainStage) return entityLabel;
+    return `${entityLabel} / ${displayStage(context.chainStage)}`;
+  }
+
   function currentModeLabel(context) {
-    if (context.mode === "entity" && context.entity) return `围绕 ${entityTitle(context.entity.id, context.entity.name)}`;
+    if (context.mode === "entity" && context.entity) {
+      return context.chainStage
+        ? `当前锁定：${activeChainSelectionLabel(context)}`
+        : `围绕 ${entityTitle(context.entity.id, context.entity.name)}`;
+    }
     if (context.mode === "transaction" && context.tx) return "关系邻域";
     if (context.mode === "camera") return "当前视角区域";
     return "全球总览";
   }
 
   function currentModeSub(context) {
-    if (context.mode === "entity" && context.entity) return "当前围绕该实体的供应链关系、空间落点与上下游主体联动展示。";
+    if (context.mode === "entity" && context.entity) {
+      return context.chainStage
+        ? "当前仅显示这个阶段节点对应的真实上下游链条，不再混入同主体其他阶段的支线。"
+        : "当前围绕该实体的供应链关系、空间落点与上下游主体联动展示。";
+    }
     if (context.mode === "transaction" && context.tx) return "已聚焦当前关系及其相关企业/设施。点击其他关系可继续钻取。";
     if (context.mode === "camera") return `视角中心 ${state.view.lat.toFixed(1)}°, ${state.view.lng.toFixed(1)}°；半径约 ${fmt.format(Math.round(context.cameraRadiusKm))} 公里。`;
     return "拖动或缩放地球后，页面会自动切换到当前视角对应的区域关系。";
@@ -856,12 +1105,11 @@
   }
 
   function stageColor(stage) {
-    return stageColors[stage] || "#7fd0ff";
+    return stageColorOverrides[stage] || stageColors[stage] || "#7fd0ff";
   }
 
   function buildLegend() {
     byId("legendList").innerHTML = stageOrder
-      .filter((stage) => stage !== "Electric scooter manufacturing")
       .map((stage) => `
       <span class="legend-pill">
         <span class="legend-dot" style="--dot:${stageColor(stage)}"></span>
@@ -888,7 +1136,7 @@
       ? items.map((item) => `
         <button class="result-item" data-entity="${esc(item.id)}">
           <div>
-            <div class="result-name">${esc(item.name)}</div>
+            <div class="result-name">${esc(item.type === "company" ? conciseEntityName(item.name) : item.name)}</div>
             <div class="result-meta">${esc(displayCountry(item.country))} | ${esc(displayEntityType(item.type))} | ${fmt.format(item.count)} 条关联关系</div>
           </div>
           <span class="tag">${item.type === "company" ? "企业" : "设施"}</span>
@@ -898,9 +1146,14 @@
   }
 
   function renderFocusChip(context) {
+    const chip = document.querySelector(".focus-chip");
     const title = byId("focusTitle");
     const sub = byId("focusSub");
+    const stageLocked = Boolean(context.entity && context.chainStage);
+    if (chip) chip.classList.toggle("is-stage-locked", stageLocked);
     if (!title || !sub) return;
+    title.classList.toggle("is-stage-locked", stageLocked);
+    sub.classList.toggle("is-stage-locked", stageLocked);
     title.textContent = currentModeLabel(context);
     sub.textContent = currentModeSub(context);
   }
@@ -997,8 +1250,11 @@
 
   function renderSummary(context) {
     byId("infoMeta").textContent = context.entity
-      ? `已锁定：${entityTitle(context.entity.id, context.entity.name)}`
+      ? (context.chainStage
+          ? `当前锁定：${activeChainSelectionLabel(context)}`
+          : `已锁定：${entityTitle(context.entity.id, context.entity.name)}`)
       : (context.tx ? "已锁定关系" : "当前未锁定实体");
+    byId("infoMeta").classList.toggle("is-stage-locked", Boolean(context.entity && context.chainStage));
     byId("summaryBody").innerHTML = context.entity
       ? entitySummaryCard(context.entity, context)
       : globalSummaryCard(context);
@@ -1070,6 +1326,108 @@
     }
   }
 
+  function setChainVisibility(open) {
+    const modal = byId("chainModal");
+    const backdrop = byId("chainBackdrop");
+    if (!modal || !backdrop) return;
+    const visible = Boolean(open);
+    state.chainOpen = visible;
+    if (visible) {
+      state.chainFullZoomMode = "fit";
+      state.chainFullVisibleStages = [];
+    }
+    modal.classList.toggle("is-hidden", !visible);
+    backdrop.classList.toggle("is-hidden", !visible);
+    modal.setAttribute("aria-hidden", visible ? "false" : "true");
+    if (visible) {
+      window.requestAnimationFrame(() => renderChain(computeContext()));
+    }
+  }
+
+  function updateChainZoomLabel() {
+    const label = byId("chainZoomLabel");
+    if (!label) return;
+    label.textContent = `${Math.round((state.chainFullZoom || 1) * 100)}%`;
+  }
+
+  function setChainFullZoom(nextZoom, mode = "manual") {
+    state.chainFullZoom = clamp(Number(nextZoom) || 1, 0.22, 2.4);
+    state.chainFullZoomMode = mode;
+    updateChainZoomLabel();
+  }
+
+  function setupChainFullViewportControls() {
+    const scroll = byId("chainFullScroll");
+    if (!scroll || scroll.dataset.bound === "1") return;
+    scroll.dataset.bound = "1";
+    scroll.classList.add("chain-pan-surface");
+
+    let drag = null;
+    let suppressClickUntil = 0;
+
+    const endDrag = () => {
+      if (!drag) return;
+      scroll.classList.remove("is-dragging");
+      drag = null;
+    };
+
+    scroll.addEventListener("mousedown", (event) => {
+      if (event.button !== 0) return;
+      drag = {
+        startX: event.clientX,
+        startY: event.clientY,
+        startLeft: scroll.scrollLeft,
+        startTop: scroll.scrollTop,
+        moved: false
+      };
+      scroll.classList.add("is-dragging");
+      event.preventDefault();
+    });
+
+    window.addEventListener("mousemove", (event) => {
+      if (!drag) return;
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
+      scroll.scrollLeft = drag.startLeft - dx;
+      scroll.scrollTop = drag.startTop - dy;
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (drag?.moved) suppressClickUntil = Date.now() + 180;
+      endDrag();
+    });
+
+    scroll.addEventListener("wheel", (event) => {
+      if (!state.chainOpen) return;
+      const oldZoom = state.chainFullZoom || 1;
+      const nextZoom = clamp(oldZoom * (event.deltaY < 0 ? 1.12 : 0.89), 0.22, 2.4);
+      if (Math.abs(nextZoom - oldZoom) < 0.001) return;
+
+      const rect = scroll.getBoundingClientRect();
+      const offsetX = event.clientX - rect.left;
+      const offsetY = event.clientY - rect.top;
+      const contentX = (scroll.scrollLeft + offsetX) / oldZoom;
+      const contentY = (scroll.scrollTop + offsetY) / oldZoom;
+
+      event.preventDefault();
+      setChainFullZoom(nextZoom, "manual");
+      renderChain(computeContext());
+
+      window.requestAnimationFrame(() => {
+        scroll.scrollLeft = Math.max(0, contentX * nextZoom - offsetX);
+        scroll.scrollTop = Math.max(0, contentY * nextZoom - offsetY);
+      });
+    }, { passive: false });
+
+    scroll.addEventListener("click", (event) => {
+      if (Date.now() < suppressClickUntil) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }, true);
+  }
+
   function setRegionVisibility(open) {
     const modal = byId("regionModal");
     const backdrop = byId("regionBackdrop");
@@ -1126,6 +1484,128 @@
     });
 
     return best?.key || directKey;
+  }
+
+  function bindChainHover(svgId) {
+    const svg = byId(svgId);
+    if (!svg || svg.dataset.hoverBound === "1") return;
+    svg.dataset.hoverBound = "1";
+
+    let activeNode = null;
+    const setActiveNode = (nextNode) => {
+      if (activeNode === nextNode) return;
+      if (activeNode) activeNode.classList.remove("is-hovered");
+      activeNode = nextNode || null;
+      if (activeNode) {
+        activeNode.classList.add("is-hovered");
+        activeNode.parentNode?.appendChild(activeNode);
+      }
+    };
+
+    svg.addEventListener("mouseover", (event) => {
+      const node = event.target.closest?.("g.chain-node");
+      if (!node || !svg.contains(node)) return;
+      setActiveNode(node);
+    });
+
+    svg.addEventListener("mousemove", (event) => {
+      const node = event.target.closest?.("g.chain-node");
+      if (!node || !svg.contains(node)) return;
+      setActiveNode(node);
+    });
+
+    svg.addEventListener("mouseleave", () => {
+      setActiveNode(null);
+    });
+  }
+
+  function computeChainFullscreenLabelLayout(nodes, options = {}) {
+    const {
+      top = 0,
+      bottom = 0,
+      height = 0,
+      fontSize = 16,
+      stageCount = 1
+    } = options;
+    const safeTop = top + 10;
+    const safeBottom = height - bottom - 10;
+    const occupied = [];
+    const nodeBounds = nodes.map((node) => ({
+      left: node.x - (node.selected ? 26 : 18),
+      right: node.x + (node.selected ? 26 : 18),
+      top: node.y - (node.selected ? 26 : 18),
+      bottom: node.y + (node.selected ? 26 : 18)
+    }));
+    const layouts = new Map();
+    const ordered = [...nodes].sort((a, b) =>
+      Number(b.selected) - Number(a.selected)
+      || a.stageIndex - b.stageIndex
+      || a.y - b.y
+      || b.count - a.count
+    );
+
+    ordered.forEach((node) => {
+      const displayLabel = shortText(node.name, node.selected ? 20 : 17);
+      const labelWidth = estimateLabelWidth(displayLabel, node.selected ? fontSize + 2 : fontSize, 22);
+      const labelHeight = Math.max(24, Math.round((node.selected ? fontSize + 2 : fontSize) + 10));
+      const preferRight = node.stageIndex <= (stageCount - 1) / 2;
+      const primaryAnchor = preferRight ? "start" : "end";
+      const secondaryAnchor = preferRight ? "end" : "start";
+      const candidates = [
+        { anchor: primaryAnchor, dx: preferRight ? 18 : -18, dy: -42 },
+        { anchor: primaryAnchor, dx: preferRight ? 18 : -18, dy: 40 },
+        { anchor: primaryAnchor, dx: preferRight ? 22 : -22, dy: -72 },
+        { anchor: primaryAnchor, dx: preferRight ? 22 : -22, dy: 70 },
+        { anchor: secondaryAnchor, dx: preferRight ? -18 : 18, dy: -34 },
+        { anchor: secondaryAnchor, dx: preferRight ? -18 : 18, dy: 34 },
+        { anchor: primaryAnchor, dx: preferRight ? 26 : -26, dy: 0 }
+      ];
+
+      let best = null;
+      candidates.forEach((candidate, index) => {
+        const labelX = node.x + candidate.dx;
+        const labelY = clamp(node.y + candidate.dy, safeTop + labelHeight / 2, safeBottom - labelHeight / 2);
+        const rectX = candidate.anchor === "start"
+          ? labelX - 10
+          : labelX - labelWidth + 10;
+        const rectY = Math.round(labelY - labelHeight / 2 - 1);
+        const rect = {
+          left: rectX - 6,
+          right: rectX + labelWidth + 6,
+          top: rectY - 4,
+          bottom: rectY + labelHeight + 4
+        };
+        const collisionCount = occupied.filter((item) => rectsOverlap(rect, item, 8)).length;
+        const nodeCollisionCount = nodeBounds.filter((item) => rectsOverlap(rect, item, 4)).length;
+        const penalty = collisionCount * 100 + nodeCollisionCount * 18 + index * 2 + Math.abs(candidate.dy) * 0.08;
+        if (!best || penalty < best.penalty) {
+          best = {
+            penalty,
+            anchor: candidate.anchor,
+            labelX,
+            labelY,
+            labelWidth,
+            labelHeight,
+            rectX,
+            rectY
+          };
+        }
+      });
+
+      if (!best) return;
+      occupied.push({
+        left: best.rectX - 6,
+        right: best.rectX + best.labelWidth + 6,
+        top: best.rectY - 4,
+        bottom: best.rectY + best.labelHeight + 4
+      });
+      layouts.set(node.graphKey, {
+        ...best,
+        displayLabel
+      });
+    });
+
+    return layouts;
   }
 
   function buildEvidenceProfile(entity, related) {
@@ -1202,33 +1682,82 @@
     `;
   }
 
+  function evidenceCounterpartMeta(tx, direction) {
+    const upstream = direction === "upstream";
+    const companyId = upstream ? tx.supplierCompanyId : tx.buyerCompanyId;
+    const facilityId = upstream ? tx.supplierFacilityId : tx.buyerFacilityId;
+    const companyRaw = compactLabelText(upstream ? tx.supplierCompany : tx.buyerCompany);
+    const facilityRaw = upstream ? tx.supplierFacility : tx.buyerFacility;
+    const entityId = facilityId || companyId || "";
+    const entity = entityId ? entities.get(entityId) : null;
+    const ownerId = entity?.type === "facility"
+      ? (facilityCompany.get(entity.id) || companyId || "")
+      : (companyId || entityId);
+    const ownerEntity = ownerId ? entities.get(ownerId) : null;
+    const subjectName = compactLabelText(
+      conciseEntityName(companyRaw)
+      || conciseEntityName(ownerEntity?.name)
+      || ownerCompanyName(entity)
+      || preferredEntityLabel(entity, {
+        companyName: companyRaw,
+        facilityRaw,
+        fallback: companyRaw || facilityRaw || "未标注"
+      })
+    ) || "未标注";
+    const facilityLabel = entity?.type === "facility"
+      ? preferredEntityLabel(entity, {
+        companyName: companyRaw || ownerEntity?.name || "",
+        facilityRaw,
+        fallback: facilityRaw || subjectName
+      })
+      : "";
+    const showFacility = Boolean(
+      facilityLabel
+      && normalizeLabelKey(facilityLabel) !== normalizeLabelKey(subjectName)
+      && !normalizeLabelKey(facilityLabel).includes(normalizeLabelKey(subjectName))
+    );
+
+    return {
+      subjectKey: ownerId || companyId || facilityId || `subject:${normalizeLabelKey(subjectName || facilityLabel || tx.id)}`,
+      subjectName,
+      facilityLabel: showFacility ? facilityLabel : "",
+      entityId: ownerId || companyId || facilityId || "",
+      rawRoleName: compactLabelText(conciseEntityName(companyRaw) || facilityRaw || subjectName || "未标注")
+    };
+  }
+
+  function summarizeEvidenceValues(values, { empty = "未标注", limit = 3 } = {}) {
+    const list = dedupeTextList(
+      (values || [])
+        .map((item) => compactLabelText(item))
+        .filter((item) => item && item !== empty)
+    );
+    if (!list.length) return empty;
+    if (list.length <= limit) return list.join("； ");
+    return `${list.slice(0, limit).join("； ")} 等${fmt.format(list.length)}项`;
+  }
+
   function groupedEvidenceTransactions(list, direction) {
     const upstream = direction === "upstream";
     const groups = new Map();
 
     list.forEach((tx) => {
-      const counterpartId = upstream
-        ? (tx.supplierFacilityId || tx.supplierCompanyId || "")
-        : (tx.buyerFacilityId || tx.buyerCompanyId || "");
-      const counterpartName = upstream
-        ? entityTitle(counterpartId, tx.supplierCompany || tx.supplierFacility)
-        : entityTitle(counterpartId, tx.buyerCompany || tx.buyerFacility);
+      const counterpart = evidenceCounterpartMeta(tx, direction);
       const stage = upstream ? tx.supplierStage : tx.buyerStage;
       const signature = [
-        counterpartId || counterpartName,
-        stage,
-        transactionCommodity(tx),
-        formatDate(tx),
-        formatAmount(tx),
-        uniqueValues(tx.sourceIds).join("|"),
-        uniqueValues(tx.notes).join("|")
+        counterpart.subjectKey || counterpart.subjectName,
+        stage
       ].join("::");
 
       if (!groups.has(signature)) {
         groups.set(signature, {
           ...tx,
+          counterpartMeta: counterpart,
           txIds: [...(tx.rawIds || [tx.id])],
-          rawCount: tx.rawCount || 1
+          rawCount: tx.rawCount || 1,
+          commodityValues: [transactionCommodity(tx)],
+          dateValues: [formatDate(tx)],
+          amountValues: [formatAmount(tx)]
         });
         return;
       }
@@ -1239,6 +1768,9 @@
       entry.sourceIds = uniqueValues([...entry.sourceIds, ...tx.sourceIds]);
       entry.notes = uniqueValues([...entry.notes, ...tx.notes]);
       entry.sourceCount = Math.max(entry.sourceCount || 0, tx.sourceCount || 0, entry.sourceIds.length);
+      entry.commodityValues = uniqueValues([...(entry.commodityValues || []), transactionCommodity(tx)]);
+      entry.dateValues = uniqueValues([...(entry.dateValues || []), formatDate(tx)]);
+      entry.amountValues = uniqueValues([...(entry.amountValues || []), formatAmount(tx)]);
     });
 
     return sortTransactionsForList([...groups.values()]);
@@ -1246,32 +1778,32 @@
 
   function evidenceCardHtml(tx, direction) {
     const upstream = direction === "upstream";
-    const counterpartId = upstream
-      ? (tx.supplierFacilityId || tx.supplierCompanyId)
-      : (tx.buyerFacilityId || tx.buyerCompanyId);
-    const counterpartName = upstream
-      ? entityTitle(counterpartId, tx.supplierCompany || tx.supplierFacility)
-      : entityTitle(counterpartId, tx.buyerCompany || tx.buyerFacility);
+    const counterpart = tx.counterpartMeta || evidenceCounterpartMeta(tx, direction);
+    const counterpartName = counterpart.subjectName || "未标注";
     const stage = upstream ? tx.supplierStage : tx.buyerStage;
     const roleLabel = upstream ? "供应方" : "采购方";
     const sourceLinks = sourceLinksForTx(tx);
     const active = tx.id === state.selectedTxId || (tx.txIds || []).includes(state.selectedTxId);
-    const mergedMeta = tx.rawCount > 1 ? ` | 合并 ${fmt.format(tx.rawCount)} 条重复记录` : "";
+    const mergedMeta = tx.rawCount > 1 ? ` | 合并 ${fmt.format(tx.rawCount)} 条记录` : "";
+    const amountSummary = summarizeEvidenceValues(tx.amountValues || [formatAmount(tx)], { limit: 2 });
+    const commoditySummary = summarizeEvidenceValues(tx.commodityValues || [transactionCommodity(tx)]);
+    const dateSummary = summarizeEvidenceValues(tx.dateValues || [formatDate(tx)]);
 
     return `
       <article class="evidence-card ${active ? "is-active" : ""}" data-tx="${esc(tx.id)}">
         <div class="evidence-card-head">
           <span class="evidence-tag" style="--badge:${stageColor(stage)}">${esc(displayStage(stage))}</span>
-          <span class="meta">${esc(`${formatAmount(tx)}${mergedMeta}`)}</span>
+          <span class="meta">${esc(`${amountSummary}${mergedMeta}`)}</span>
         </div>
         <div class="evidence-card-title">${esc(counterpartName)}</div>
         <dl class="evidence-kv">
           <dt>${roleLabel}</dt>
-          <dd>${esc(upstream ? (tx.supplierCompany || tx.supplierFacility || "未标注") : (tx.buyerCompany || tx.buyerFacility || "未标注"))}</dd>
+          <dd>${esc(counterpartName)}</dd>
+          ${counterpart.facilityLabel ? `<dt>设施</dt><dd>${esc(counterpart.facilityLabel)}</dd>` : ""}
           <dt>商品</dt>
-          <dd>${esc(transactionCommodity(tx))}</dd>
+          <dd>${esc(commoditySummary)}</dd>
           <dt>时间</dt>
-          <dd>${esc(formatDate(tx))}</dd>
+          <dd>${esc(dateSummary)}</dd>
           <dt>来源</dt>
           <dd>${sourceLinks.length
             ? sourceLinks.slice(0, 3).map((source) => `<a class="source-link" href="${esc(source.url)}" target="_blank" rel="noreferrer">${esc(source.host || "Link")}</a>`).join(" / ")
@@ -1386,14 +1918,14 @@
         const entry = pointMap.get(source.key);
         entry.weight += 1;
         entry.stages.set(source.stage, (entry.stages.get(source.stage) || 0) + 1);
-        entry.selected = entry.selected || source.entityId === state.selectedEntityId;
+        entry.selected = entry.selected || matchesSelectedEntity(source);
       }
       if (isNum(target.lat) && isNum(target.lon)) {
         if (!pointMap.has(target.key)) pointMap.set(target.key, { ...target, weight: 0, stages: new Map(), selected: false });
         const entry = pointMap.get(target.key);
         entry.weight += 1;
         entry.stages.set(target.stage, (entry.stages.get(target.stage) || 0) + 1);
-        entry.selected = entry.selected || target.entityId === state.selectedEntityId;
+        entry.selected = entry.selected || matchesSelectedEntity(target);
       }
       if (isNum(source.lat) && isNum(source.lon) && isNum(target.lat) && isNum(target.lon)) {
         links.push({ id: tx.id, source, target, tx, selected });
@@ -1425,7 +1957,7 @@
       return { ...point, p, crowd, index };
     });
 
-    const labelLimit = width > 1500 ? 9 : 8;
+    const labelLimit = points.length <= 14 ? points.length : (width > 1500 ? 12 : 10);
     const prioritized = crowdData
       .sort((a, b) =>
         Number(b.selected) - Number(a.selected)
@@ -1446,15 +1978,15 @@
     });
 
     const uniqueChosen = [];
-    const seenLabels = new Set();
+    const seenPoints = new Set();
     chosen.forEach((item) => {
-      const labelKey = normalizeLabelKey(item.chainName || item.name);
-      if (!labelKey || seenLabels.has(labelKey)) return;
-      seenLabels.add(labelKey);
+      if (!item.key || seenPoints.has(item.key)) return;
+      seenPoints.add(item.key);
       uniqueChosen.push(item);
     });
 
-    const panelWidth = clamp(Math.round(width * 0.28), 296, 360);
+    const panelWidth = clamp(Math.round(width * 0.32), 320, 430);
+    const displayLimit = width > 1400 ? 38 : 32;
     const panel = {
       left: plotBox.right + 18,
       right: Math.min(width - paddingX, plotBox.right + 18 + panelWidth),
@@ -1469,7 +2001,17 @@
     const layout = new Map();
     const headers = [];
 
-    const sortedChosen = uniqueChosen
+    const dedupedChosen = [];
+    const seenDisplayPoints = new Set();
+    uniqueChosen.forEach((item) => {
+      const displayText = buildRegionPointLabel(item, uniqueChosen, displayLimit);
+      const displayKey = `${normalizeLabelKey(displayText)}::${Math.round((item.lat || 0) * 100)}::${Math.round((item.lon || 0) * 100)}`;
+      if (seenDisplayPoints.has(displayKey)) return;
+      seenDisplayPoints.add(displayKey);
+      dedupedChosen.push(item);
+    });
+
+    const sortedChosen = dedupedChosen
       .sort((a, b) =>
         Number(b.selected) - Number(a.selected)
         || stageOrder.indexOf(a.dominantStage) - stageOrder.indexOf(b.dominantStage)
@@ -1495,7 +2037,7 @@
       const labelY = rectY + itemHeight / 2 + 4;
       layout.set(item.key, {
         crowded: item.crowd >= 2,
-        text: shortText(item.chainName || item.name, width > 1400 ? 28 : 22),
+        text: buildRegionPointLabel(item, dedupedChosen, displayLimit),
         textX: rectX + 18,
         rectX,
         rectY,
@@ -1513,7 +2055,7 @@
       cursorY += itemHeight + rowGap;
     });
 
-    return { layout, panel, count: uniqueChosen.length, headers };
+    return { layout, panel, count: dedupedChosen.length, headers };
   }
 
   function renderRegion(context) {
@@ -1680,7 +2222,7 @@
       <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(3,9,17,.34)"></rect>
       <rect x="${plotBox.left}" y="${plotBox.top}" width="${plotBox.right - plotBox.left}" height="${plotBox.bottom - plotBox.top}" rx="18" fill="rgba(5, 12, 22, .26)" stroke="rgba(110,198,255,.08)" stroke-width="1"></rect>
       <rect x="${labelPanel.left}" y="${labelPanel.top}" width="${labelPanel.right - labelPanel.left}" height="${labelPanel.bottom - labelPanel.top}" rx="16" fill="rgba(5, 12, 22, .18)" stroke="rgba(110,198,255,.08)" stroke-width="1"></rect>
-      <text class="chart-sub-label" x="${labelPanel.left + 14}" y="${labelPanel.top + 20}" font-size="${metaFont}">重点实体标签 ${fmt.format(regionLabels.count)}</text>
+      <text class="chart-sub-label" x="${labelPanel.left + 14}" y="${labelPanel.top + 20}" font-size="${metaFont}">重点实体标签</text>
       ${panelHeaderHtml}
       ${gridLines.join("")}
       ${linkHtml}
@@ -1689,7 +2231,8 @@
     `;
   }
 
-  function buildChainModel(context) {
+  function buildChainModel(context, options = {}) {
+    const { fullscreen = false, visibleStages = null } = options;
     const seedTxs = context.mode === "entity" || context.mode === "transaction"
       ? (context.entity ? context.chainFocus : context.focus)
       : (cameraFocusedTransactions(context.base, cameraRadiusKm(state.view.altitude, 0.9)).length
@@ -1735,8 +2278,8 @@
 
       nodeMap.get(sourceKey).count += 1;
       nodeMap.get(targetKey).count += 1;
-      nodeMap.get(sourceKey).selected = nodeMap.get(sourceKey).selected || (source.chainEntityId || source.entityId) === state.selectedEntityId;
-      nodeMap.get(targetKey).selected = nodeMap.get(targetKey).selected || (target.chainEntityId || target.entityId) === state.selectedEntityId;
+      nodeMap.get(sourceKey).selected = nodeMap.get(sourceKey).selected || matchesSelectedEntity(source);
+      nodeMap.get(targetKey).selected = nodeMap.get(targetKey).selected || matchesSelectedEntity(target);
 
       const edgeKey = `${sourceKey}>>${targetKey}`;
       if (!edgeMap.has(edgeKey)) edgeMap.set(edgeKey, { sourceKey, targetKey, count: 0, txId: tx.id, selected: false });
@@ -1752,45 +2295,79 @@
       stageBuckets.get(node.stage).push(node);
     });
 
-    const stageLimit = context.entity ? 6 : 5;
+    const allStages = stageOrder.filter((stage) => stageBuckets.has(stage));
+    const visibleStageSet = visibleStages?.length ? new Set(visibleStages) : null;
+    const stageLimit = context.entity ? 16 : 5;
     const keepKeys = new Set();
-    const stages = stageOrder.filter((stage) => stageBuckets.has(stage));
-    stages.forEach((stage) => {
-      const bucket = stageBuckets.get(stage)
-        .sort((a, b) => Number(b.selected) - Number(a.selected) || b.count - a.count || a.name.localeCompare(b.name, "en"))
-        .slice(0, stageLimit);
-      bucket.forEach((node) => keepKeys.add(node.graphKey));
-    });
+    const stages = allStages.filter((stage) => !visibleStageSet || visibleStageSet.has(stage));
+    if (Number.isFinite(stageLimit)) {
+      stages.forEach((stage) => {
+        const bucket = stageBuckets.get(stage)
+          .sort((a, b) => Number(b.selected) - Number(a.selected) || b.count - a.count || a.name.localeCompare(b.name, "en"))
+          .slice(0, stageLimit);
+        bucket.forEach((node) => keepKeys.add(node.graphKey));
+      });
+    } else {
+      [...nodeMap.values()].forEach((node) => keepKeys.add(node.graphKey));
+    }
 
-    const nodes = [...nodeMap.values()].filter((node) => keepKeys.has(node.graphKey));
+    const nodes = [...nodeMap.values()]
+      .filter((node) => keepKeys.has(node.graphKey))
+      .sort((a, b) =>
+        stageOrder.indexOf(a.stage) - stageOrder.indexOf(b.stage)
+        || Number(b.selected) - Number(a.selected)
+        || b.count - a.count
+        || a.name.localeCompare(b.name, "en"));
     const edges = [...edgeMap.values()].filter((edge) => keepKeys.has(edge.sourceKey) && keepKeys.has(edge.targetKey));
-    return { nodes, edges, stages };
+    const stageCounts = new Map(allStages.map((stage) => [stage, (stageBuckets.get(stage) || []).length]));
+    return { nodes, edges, stages, allStages, stageCounts };
   }
 
-  function renderChain(context) {
-    const model = buildChainModel(context);
-    const svg = byId("chainSvg");
-    const baseViewport = getSvgViewport(svg, 980, 320);
-    const width = Math.max(baseViewport.width, 1320);
-    const height = Math.max(baseViewport.height, 320);
-    const stageFont = clamp(Math.round(height * 0.05), 12, 16);
-    const nodeFont = clamp(Math.round(height * 0.04), 11, 14);
+  function renderChainInto(context, options = {}) {
+    const {
+      svgId = "chainSvg",
+      metaId = "chainMeta",
+      captionId = "chainCaption",
+      fullscreen = false
+    } = options;
+
+    const model = buildChainModel(context, {
+      fullscreen,
+      visibleStages: fullscreen ? state.chainFullVisibleStages : null
+    });
+    const svg = byId(svgId);
+    if (!svg) return;
+    const scroll = fullscreen ? byId("chainFullScroll") : byId("chainScroll");
+
+    const baseViewport = getSvgViewport(svg, fullscreen ? 1680 : 980, fullscreen ? 760 : 320);
+    const width = context.entity
+      ? Math.max(baseViewport.width, (fullscreen ? 198 : 220) * Math.max(model.stages.length, 6) + (fullscreen ? 260 : 220))
+      : Math.max(baseViewport.width, fullscreen ? 1720 : 1320);
+    const stageCounts = model.stages.map((stage) => model.nodes.filter((node) => node.stage === stage).length);
+    const maxStageNodes = Math.max(1, ...stageCounts);
+    const height = context.entity
+      ? Math.max(baseViewport.height, clamp((fullscreen ? 320 : 240) + maxStageNodes * (fullscreen ? 104 : 78), fullscreen ? 1180 : 420, fullscreen ? 3600 : 1760))
+      : Math.max(baseViewport.height, fullscreen ? 720 : 320);
+    const stageFont = fullscreen
+      ? clamp(Math.round(height * 0.032), 18, 30)
+      : clamp(Math.round(height * 0.05), 12, 16);
+    const nodeFont = fullscreen
+      ? clamp(Math.round(height * 0.018), 14, 18)
+      : clamp(Math.round(height * 0.04), 11, 14);
     const metaFont = clamp(Math.round(height * 0.034), 10, 12);
-    svg.style.width = `${width}px`;
-    svg.style.height = `${height}px`;
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
     if (!model.nodes.length) {
-      byId("chainCaption").textContent = "当前焦点下没有可展开的知识图谱结构。";
+      if (byId(captionId)) byId(captionId).textContent = "当前焦点下没有可展开的知识图谱结构。";
       svg.innerHTML = `<foreignObject x="18" y="20" width="${width - 36}" height="${Math.max(200, height - 40)}"><div xmlns="http://www.w3.org/1999/xhtml" class="empty-state">请先锁定一个企业、矿点或关系，再查看按供应链环节展开的知识图谱。</div></foreignObject>`;
       return;
     }
 
     const stageNodes = new Map();
     model.stages.forEach((stage) => stageNodes.set(stage, model.nodes.filter((node) => node.stage === stage)));
-    const xPadding = 92;
-    const top = 92;
-    const bottom = 78;
+    const xPadding = fullscreen ? 96 : 92;
+    const top = fullscreen ? 138 : 92;
+    const bottom = fullscreen ? 134 : 78;
     const stageStep = model.stages.length > 1 ? (width - xPadding * 2) / (model.stages.length - 1) : 0;
     const positioned = new Map();
 
@@ -1802,7 +2379,11 @@
         positioned.set(node.graphKey, {
           ...node,
           x: xPadding + stageStep * stageIndex,
-          y: nodes.length > 1 ? top + step * index : top + usableHeight / 2
+          y: nodes.length > 1 ? top + step * index : top + usableHeight / 2,
+          laneIndex: 0,
+          laneOffset: 0,
+          rowIndex: index,
+          stageIndex
         });
       });
     });
@@ -1814,14 +2395,13 @@
         <text class="chart-label" x="${x}" y="34" text-anchor="middle" font-size="${stageFont}">${esc(displayStage(stage))}</text>
       `;
     }).join("");
-
     const edgeHtml = model.edges.map((edge) => {
       const source = positioned.get(edge.sourceKey);
       const target = positioned.get(edge.targetKey);
       if (!source || !target) return "";
       const curveX = (source.x + target.x) / 2;
       const color = stageColor(source.stage);
-      const widthValue = edge.selected ? 4 : clamp(1.3 + edge.count * 0.35, 1.4, 4);
+      const widthValue = edge.selected ? 4.8 : clamp(1.3 + edge.count * 0.35, 1.4, 4.2);
       return `
         <path
           class="chain-edge"
@@ -1829,7 +2409,7 @@
           d="M ${source.x} ${source.y} C ${curveX} ${source.y}, ${curveX} ${target.y}, ${target.x} ${target.y}"
           stroke="${color}"
           stroke-width="${widthValue}"
-          stroke-opacity="${edge.selected ? 1 : 0.58}"
+          stroke-opacity="${edge.selected ? 0.98 : 0.58}"
         >
           <title>${esc(source.name)} → ${esc(target.name)}&#10;${esc(displayStage(source.stage))} → ${esc(displayStage(target.stage))}&#10;关系数：${fmt.format(edge.count)}</title>
         </path>
@@ -1838,20 +2418,80 @@
 
     const nodeHtml = [...positioned.values()].map((node) => {
       const color = stageColor(node.stage);
+      const outerRadius = fullscreen ? (node.selected ? 22 : 13.5) : (node.selected ? 24 : 15);
+      const haloRadius = fullscreen ? (node.selected ? 31 : 17.5) : (node.selected ? 33 : 19);
+      const coreRadius = fullscreen ? (node.selected ? 8.6 : 5.4) : (node.selected ? 9.5 : 6.2);
+      const labelColor = node.selected ? "#ff5f5f" : "#eaf5ff";
+      const labelFont = node.selected ? nodeFont + (fullscreen ? 3 : 4) : nodeFont;
+      const labelOffset = node.selected ? 30 : 24;
+      const labelAnchor = "middle";
+      const displayLabel = shortText(node.name, fullscreen ? 18 : (context.entity ? 24 : 18));
+      const labelX = node.x;
+      const labelY = node.y - labelOffset;
+      const hoverAnchor = node.stageIndex >= model.stages.length / 2 ? "end" : "start";
+      const hoverLabel = compactLabelText(node.name || displayLabel);
+      const hoverFont = node.selected ? labelFont + 1 : labelFont;
+      const hoverWidth = fullscreen ? estimateLabelWidth(hoverLabel, hoverFont, 26) : 0;
+      const hoverHeight = fullscreen ? Math.max(28, Math.round(hoverFont + 12)) : 0;
+      const hoverX = fullscreen
+        ? (hoverAnchor === "start" ? node.x + 22 : node.x - 22)
+        : 0;
+      const hoverY = fullscreen
+        ? clamp(node.y - 8, top + hoverHeight / 2, height - bottom - hoverHeight / 2)
+        : 0;
+      const hoverBoxX = fullscreen
+        ? (hoverAnchor === "start" ? hoverX - 12 : hoverX - hoverWidth + 12)
+        : 0;
+      const hoverBoxY = fullscreen ? Math.round(hoverY - hoverHeight / 2 - 1) : 0;
       return `
-        <g class="chain-node" data-entity="${esc(node.entityId || "")}">
-          <circle cx="${node.x}" cy="${node.y}" r="${node.selected ? 17 : 15}" fill="${withAlpha(color, "22")}" stroke="${color}" stroke-width="1.2"></circle>
-          <circle cx="${node.x}" cy="${node.y}" r="${node.selected ? 7.5 : 6.2}" fill="${color}" stroke="${node.selected ? "#fff" : "none"}" stroke-width="1.6"></circle>
-          <text class="chart-label" x="${node.x}" y="${node.y - 24}" text-anchor="middle" font-size="${nodeFont}">${esc(shortText(node.name, 18))}</text>
+        <g class="chain-node${node.selected ? " is-selected" : ""}" data-entity="${esc(node.entityId || "")}" data-stage="${esc(node.stage || "")}">
+          <circle cx="${node.x}" cy="${node.y}" r="${haloRadius}" fill="${withAlpha(node.selected ? "#ff6a6a" : color, node.selected ? "16" : "0c")}"></circle>
+          <circle cx="${node.x}" cy="${node.y}" r="${outerRadius}" fill="${withAlpha(color, node.selected ? "2d" : "22")}" stroke="${node.selected ? "#ff8b8b" : color}" stroke-width="${node.selected ? 2.8 : 1.2}"></circle>
+          <circle cx="${node.x}" cy="${node.y}" r="${coreRadius}" fill="${node.selected ? "#ff6262" : color}" stroke="${node.selected ? "#fff7f7" : "none"}" stroke-width="${node.selected ? 2.2 : 1.6}"></circle>
+          <text class="chart-label${fullscreen ? " chain-node-label" : ""}" x="${labelX}" y="${labelY}" text-anchor="${labelAnchor}" font-size="${labelFont}" fill="${labelColor}" font-weight="${node.selected ? 800 : 700}">${esc(displayLabel)}</text>
+          ${fullscreen ? `
+            <g class="chain-hover-label">
+              <rect class="chain-hover-chip" x="${hoverBoxX}" y="${hoverBoxY}" width="${hoverWidth}" height="${hoverHeight}" rx="${Math.round(hoverHeight / 2)}"></rect>
+              <text class="chart-label chain-hover-text" x="${hoverX}" y="${hoverY}" text-anchor="${hoverAnchor}" font-size="${hoverFont}" fill="${labelColor}" font-weight="${node.selected ? 800 : 700}">${esc(hoverLabel)}</text>
+            </g>
+          ` : ""}
           <title>${esc(node.name)}&#10;${esc(displayStage(node.stage))} | ${esc(displayCountry(node.country))}&#10;${esc(safeText(node.place, "未标注地点"))}</title>
         </g>
       `;
     }).join("");
 
-    byId("chainMeta").textContent = context.entity
-      ? `围绕 ${entityTitle(context.entity.id, context.entity.name)} 展开的多类别节点关系`
+    if (byId(metaId)) byId(metaId).textContent = context.entity
+      ? (context.chainStage
+          ? `当前锁定：${activeChainSelectionLabel(context)}`
+          : `围绕 ${entityTitle(context.entity.id, context.entity.name)} 展开的全流程上下游链条`)
       : (context.mode === "camera" ? "当前视角区域内的多类别节点关系" : "按供应链环节分层展开");
-    byId("chainCaption").textContent = `当前图谱共展示 ${fmt.format(model.nodes.length)} 个节点、${fmt.format(model.edges.length)} 条关系。节点颜色代表所属环节类别，点击节点或连线可继续钻取。`;
+    if (byId(captionId)) {
+      byId(captionId).textContent = fullscreen
+        ? (context.chainStage
+            ? `当前全屏仅显示 ${activeChainSelectionLabel(context)} 对应的专属上下游链。可用鼠标滚轮缩放、按住拖动画布。`
+            : `全屏图谱会尽量保留完整链条节点与关系。可用鼠标滚轮缩放、按住拖动画布，也可以通过上方阶段按钮折叠或展开指定环节。`)
+        : (context.entity
+            ? (context.chainStage
+                ? `当前图谱仅保留 ${activeChainSelectionLabel(context)} 这一个阶段节点的真实上下游链路。`
+                : `当前图谱保留该实体可追踪的上下游主链路。被搜索节点会以更大的红色名称与节点高亮显示，方便快速定位其所处环节。`)
+            : `当前图谱共展示 ${fmt.format(model.nodes.length)} 个节点、${fmt.format(model.edges.length)} 条关系。节点颜色代表所属环节类别，点击节点或连线可继续钻取。`);
+    }
+
+    let zoom = 1;
+    if (fullscreen && scroll) {
+      const fitWidth = Math.max(0.22, (scroll.clientWidth - 32) / width);
+      const fitHeight = Math.max(0.22, (scroll.clientHeight - 32) / height);
+      const fitZoom = clamp(Math.min(context.entity ? fitWidth : Math.min(fitWidth, fitHeight), 1), 0.22, 1);
+      if (state.chainFullZoomMode === "fit" || !Number.isFinite(state.chainFullZoom) || state.chainFullZoom <= 0) {
+        state.chainFullZoom = fitZoom;
+      }
+      zoom = state.chainFullZoom;
+    }
+
+    const renderedWidth = Math.round(width * zoom);
+    const renderedHeight = Math.round(height * zoom);
+    svg.style.width = `${renderedWidth}px`;
+    svg.style.height = `${renderedHeight}px`;
     svg.innerHTML = `
       <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(3,9,17,.32)"></rect>
       ${stageGuides}
@@ -1859,6 +2499,58 @@
       ${nodeHtml}
       <text class="chart-sub-label" x="${xPadding}" y="${height - 12}" font-size="${metaFont}">说明：颜色表示环节类别；点击节点或连线可在右侧与证据链中联动。</text>
     `;
+    bindChainHover(svgId);
+
+    if (fullscreen) {
+      updateChainZoomLabel();
+      if (scroll && (state.chainFullZoomMode === "fit")) {
+        scroll.scrollLeft = 0;
+        scroll.scrollTop = 0;
+      }
+    }
+
+    return model;
+  }
+
+  function renderChain(context) {
+    renderChainInto(context, {
+      svgId: "chainSvg",
+      metaId: "chainMeta",
+      captionId: "chainCaption",
+      fullscreen: false
+    });
+    if (state.chainOpen) {
+      const fullModel = renderChainInto(context, {
+        svgId: "chainFullSvg",
+        metaId: "chainFullMeta",
+        captionId: "chainFullCaption",
+        fullscreen: true
+      });
+      renderChainStageFilters(fullModel);
+    }
+  }
+
+  function renderChainStageFilters(model) {
+    const host = byId("chainStageFilters");
+    if (!host || !model) return;
+    const activeSet = new Set((state.chainFullVisibleStages?.length ? state.chainFullVisibleStages : model.allStages) || []);
+    host.innerHTML = model.allStages.map((stage) => {
+      const active = activeSet.has(stage);
+      const count = model.stageCounts?.get(stage) || 0;
+      return `
+        <button
+          class="stage-toggle-btn ${active ? "" : "is-off"}"
+          type="button"
+          data-stage="${esc(stage)}"
+          aria-pressed="${active ? "true" : "false"}"
+          title="${active ? "点击隐藏该环节" : "点击显示该环节"}"
+        >
+          <span class="stage-toggle-dot" style="--dot:${stageColor(stage)}"></span>
+          <span>${esc(displayStage(stage))}</span>
+          <span class="meta">${fmt.format(count)}</span>
+        </button>
+      `;
+    }).join("");
   }
 
   function buildHierarchyGroups(entity, list, direction) {
@@ -1994,7 +2686,7 @@
         entry.weight += 1;
         entry.stageCounts.set(point.stage, (entry.stageCounts.get(point.stage) || 0) + 1);
         entry.active = entry.active || active;
-        entry.selected = entry.selected || point.entityId === state.selectedEntityId;
+        entry.selected = entry.selected || matchesSelectedEntity(point);
       });
 
       if (isNum(source.lat) && isNum(source.lon) && isNum(target.lat) && isNum(target.lon)) {
@@ -2312,12 +3004,20 @@
   }
 
   function renderStatus(context) {
+    const stageLocked = Boolean(context.entity && context.chainStage);
     byId("queryMeta").textContent = context.entity
-      ? `已锁定：${entityTitle(context.entity.id, context.entity.name)}`
+      ? (context.chainStage
+          ? `当前锁定：${activeChainSelectionLabel(context)}`
+          : `已锁定：${entityTitle(context.entity.id, context.entity.name)}`)
       : (context.mode === "camera" ? "当前视角区域" : "全链路视角");
+    byId("queryMeta").classList.toggle("is-stage-locked", stageLocked);
     byId("statusText").textContent = context.entity
-      ? `围绕 ${entityTitle(context.entity.id, context.entity.name)} 显示 ${fmt.format(context.focus.length)} 条关系`
+      ? (context.chainStage
+          ? `当前显示 ${activeChainSelectionLabel(context)} 的专属链条，共 ${fmt.format(context.chainFocus.length)} 条关系`
+          : `围绕 ${entityTitle(context.entity.id, context.entity.name)} 显示 ${fmt.format(context.focus.length)} 条关系`)
       : `当前显示 ${fmt.format(context.focus.length)} 条关系`;
+    byId("statusText").classList.toggle("is-stage-locked", stageLocked);
+    byId("chainMeta").classList.toggle("is-stage-locked", stageLocked);
 
     byId("chips").innerHTML = [
       `关系 ${fmt.format(context.focus.length)}`,
@@ -2325,6 +3025,7 @@
       `影像 ${TEXTURES[state.texture].label}`,
       state.stage !== "all" ? `环节 ${displayStage(state.stage)}` : "",
       context.entity ? `实体 ${entityTitle(context.entity.id, context.entity.name)}` : "",
+      context.chainStage ? `阶段锁定 ${displayStage(context.chainStage)}` : "",
       state.globeMode === "fallback" ? "地球 底图模式" : ""
     ].filter(Boolean).map((item) => `<span class="chip">${esc(item)}</span>`).join("");
 
@@ -2347,13 +3048,25 @@
     if (updateGlobe) renderGlobe(context, { recenter });
   }
 
-  function selectEntity(entityId) {
+  function selectEntity(entityId, options = {}) {
+    const { chainStage = "" } = options;
     state.selectedEntityId = entityId || "";
+    state.selectedChainStage = entityId ? String(chainStage || "") : "";
     const base = stageFilteredTransactions();
-    const related = entityId ? entityFocusedTransactions(base, entityId) : [];
+    const related = entityId
+      ? entityFocusedTransactions(base, entityId).filter((tx) => {
+          if (!state.selectedChainStage) return true;
+          return (txSideMatchesEntity(tx, "supplier", entityId) && tx.supplierStage === state.selectedChainStage)
+            || (txSideMatchesEntity(tx, "buyer", entityId) && tx.buyerStage === state.selectedChainStage);
+        })
+      : [];
     state.selectedTxId = related[0]?.id || "";
     state.evidenceOpen = Boolean(entityId);
     renderAll({ recenter: true, updateGlobe: true });
+  }
+
+  function selectChainEntity(entityId, chainStage = "") {
+    selectEntity(entityId, { chainStage });
   }
 
   function selectTransaction(txId) {
@@ -2364,8 +3077,10 @@
 
   function resetAll() {
     state.selectedEntityId = "";
+    state.selectedChainStage = "";
     state.selectedTxId = "";
     state.evidenceOpen = false;
+    state.chainOpen = false;
     state.regionOpen = false;
     state.stage = "all";
     state.labels = true;
@@ -2378,6 +3093,7 @@
     byId("densityBtn").classList.remove("is-on");
     byId("rotateBtn").classList.add("is-on");
     setEvidenceVisibility(false);
+    setChainVisibility(false);
     setRegionVisibility(false);
     renderAll({ recenter: true, updateGlobe: true });
   }
@@ -2445,7 +3161,34 @@
       return;
     }
     const entityNode = event.target.closest("[data-entity]");
-    if (entityNode && entityNode.dataset.entity) selectEntity(entityNode.dataset.entity);
+    if (entityNode && entityNode.dataset.entity) selectChainEntity(entityNode.dataset.entity, entityNode.dataset.stage || "");
+  });
+
+  byId("chainFullSvg").addEventListener("click", (event) => {
+    const txNode = event.target.closest("[data-tx]");
+    if (txNode) {
+      selectTransaction(txNode.dataset.tx);
+      return;
+    }
+    const entityNode = event.target.closest("[data-entity]");
+    if (entityNode && entityNode.dataset.entity) selectChainEntity(entityNode.dataset.entity, entityNode.dataset.stage || "");
+  });
+
+  byId("chainStageFilters").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-stage]");
+    if (!button) return;
+    const stage = button.dataset.stage;
+    const current = new Set(state.chainFullVisibleStages);
+    const isExplicit = current.size > 0;
+    const available = new Set(stageOrder);
+    const working = isExplicit ? current : available;
+    if (working.has(stage)) {
+      working.delete(stage);
+    } else {
+      working.add(stage);
+    }
+    state.chainFullVisibleStages = [...working].filter((item) => stageOrder.includes(item));
+    renderChain(computeContext());
   });
 
   byId("searchInput").addEventListener("input", renderResults);
@@ -2468,9 +3211,11 @@
     state.selectedEntityId = "";
     state.selectedTxId = "";
     state.evidenceOpen = false;
+    state.chainOpen = false;
     state.regionOpen = false;
     byId("searchInput").value = "";
     setEvidenceVisibility(false);
+    setChainVisibility(false);
     setRegionVisibility(false);
     renderAll({ recenter: false, updateGlobe: true });
   });
@@ -2480,12 +3225,46 @@
     setEvidenceVisibility(!state.evidenceOpen);
   });
 
+  byId("chainDragHandle").addEventListener("click", () => {
+    setEvidenceVisibility(false);
+    setChainVisibility(true);
+  });
+
+  byId("chainZoomInBtn").addEventListener("click", () => {
+    setChainFullZoom((state.chainFullZoom || 1) * 1.18, "manual");
+    renderChain(computeContext());
+  });
+
+  byId("chainZoomOutBtn").addEventListener("click", () => {
+    setChainFullZoom((state.chainFullZoom || 1) / 1.18, "manual");
+    renderChain(computeContext());
+  });
+
+  byId("chainZoomFitBtn").addEventListener("click", () => {
+    state.chainFullZoomMode = "fit";
+    renderChain(computeContext());
+  });
+
+  byId("chainStageResetBtn").addEventListener("click", () => {
+    state.chainFullVisibleStages = [];
+    state.chainFullZoomMode = "fit";
+    renderChain(computeContext());
+  });
+
   byId("closeEvidenceBtn").addEventListener("click", () => {
     setEvidenceVisibility(false);
   });
 
+  byId("closeChainBtn").addEventListener("click", () => {
+    setChainVisibility(false);
+  });
+
   byId("evidenceBackdrop").addEventListener("click", () => {
     setEvidenceVisibility(false);
+  });
+
+  byId("chainBackdrop").addEventListener("click", () => {
+    setChainVisibility(false);
   });
 
   byId("openRegionBtn").addEventListener("click", () => {
@@ -2546,7 +3325,11 @@
 
   window.addEventListener("resize", () => {
     if (globe) globe.width(globeHost.clientWidth || window.innerWidth).height(globeHost.clientHeight || window.innerHeight);
+    if (state.chainOpen) renderChain(computeContext());
   });
+
+  setupChainFullViewportControls();
+  updateChainZoomLabel();
 
   buildLegend();
   setupFallbackEarth();

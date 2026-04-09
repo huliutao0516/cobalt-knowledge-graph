@@ -116,6 +116,9 @@
       </div>
       <div class="panel-body">
         <div id="chainCaption" class="subnote"></div>
+        <button id="chainDragHandle" class="chain-drag-handle" type="button" aria-label="全屏显示知识图谱">
+          <span class="chain-drag-handle-text">全屏显示</span>
+        </button>
         <div id="chainScroll" class="graph-scroll">
           <svg id="chainSvg" viewBox="0 0 1320 560" preserveAspectRatio="none"></svg>
         </div>
@@ -132,6 +135,7 @@
   </div>
 
   <div id="evidenceBackdrop" class="evidence-backdrop is-hidden"></div>
+  <div id="chainBackdrop" class="evidence-backdrop is-hidden"></div>
   <div id="regionBackdrop" class="region-backdrop is-hidden"></div>
 
   <section id="evidenceModal" class="panel evidence-modal is-hidden" aria-hidden="true">
@@ -174,6 +178,32 @@
       <div id="regionStats" class="chips compact-top"></div>
       <div id="regionScroll" class="graph-scroll">
         <svg id="regionSvg" viewBox="0 0 1100 560" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+  </section>
+
+  <section id="chainModal" class="panel chain-modal is-hidden" aria-hidden="true">
+    <div class="panel-head">
+      <span>知识图谱</span>
+      <div class="panel-head-actions">
+        <div class="chain-zoom-tools" aria-label="全屏图谱缩放工具">
+          <button id="chainZoomOutBtn" class="mini-btn" type="button">缩小</button>
+          <button id="chainZoomFitBtn" class="mini-btn" type="button">适配</button>
+          <button id="chainZoomInBtn" class="mini-btn" type="button">放大</button>
+          <span id="chainZoomLabel" class="meta">100%</span>
+        </div>
+        <span id="chainFullMeta" class="meta">完整供应链链条视图</span>
+        <button id="closeChainBtn" class="ghost-btn" type="button">关闭</button>
+      </div>
+    </div>
+    <div class="panel-body chain-modal-body">
+      <div id="chainFullCaption" class="subnote"></div>
+      <div class="chain-stage-toolbar">
+        <button id="chainStageResetBtn" class="mini-btn" type="button">全部显示</button>
+        <div id="chainStageFilters" class="chips"></div>
+      </div>
+      <div id="chainFullScroll" class="graph-scroll">
+        <svg id="chainFullSvg" viewBox="0 0 1800 900" preserveAspectRatio="none"></svg>
       </div>
     </div>
   </section>
