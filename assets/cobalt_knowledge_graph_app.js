@@ -135,6 +135,7 @@
   const tooltip = byId("tooltip");
   const globeHost = byId("globe");
   const chain3dCanvas = byId("chain3dCanvas");
+  const chain3dLegend = byId("chain3dLegend");
 
   const rawTransactions = (DATA.transactions || []).map((tx) => ({
     ...tx,
@@ -1611,43 +1612,18 @@
       ? "\u62d6\u52a8\u4e09\u7ef4\u56fe\u8c31\u53ef\u65cb\u8f6c\uff0c\u6eda\u8f6e\u53ef\u7f29\u653e\uff1b\u5f53\u524d\u5df2\u8fc7\u6ee4\u5230\u6240\u9009\u4e3b\u4f53\u7684\u5b8c\u6574\u4e0a\u4e0b\u6e38\u94fe\u3002"
       : "\u62d6\u52a8\u4e09\u7ef4\u56fe\u8c31\u53ef\u65cb\u8f6c\uff0c\u6eda\u8f6e\u53ef\u7f29\u653e\uff1b\u70b9\u51fb\u8282\u70b9\u540e\u4f1a\u5207\u6362\u4e3a\u8be5\u4e3b\u4f53\u7684\u5b8c\u6574\u4e0a\u4e0b\u6e38\u94fe\u3002";
     syncChain3DBackButton();
+    if (chain3dLegend) {
+      chain3dLegend.innerHTML = scene.stages.map((stage) => `
+        <span class="chain3d-legend-pill">
+          <span class="chain3d-legend-dot" style="--dot:${stageColor(stage)}"></span>
+          ${esc(displayStage(stage))}
+        </span>
+      `).join("");
+    }
     ctx.fillStyle = "rgba(252, 251, 247, 0.96)";
     ctx.fillRect(0, 0, width, height);
-    ctx.font = "600 12px 'Segoe UI', 'Microsoft YaHei', sans-serif";
     ctx.textBaseline = "middle";
-    const legendItems = [];
-    let legendX = 24;
-    let legendY = 24;
-    const legendGap = 10;
-    const legendRowHeight = 30;
-    scene.stages.forEach((stage) => {
-      const label = displayStage(stage);
-      const itemWidth = Math.ceil(ctx.measureText(label).width) + 42;
-      if (legendX + itemWidth > width - 24) {
-        legendX = 24;
-        legendY += legendRowHeight;
-      }
-      legendItems.push({ stage, label, x: legendX, y: legendY, w: itemWidth, h: 24 });
-      legendX += itemWidth + legendGap;
-    });
-    legendItems.forEach((item) => {
-      ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
-      ctx.strokeStyle = "rgba(16, 34, 49, 0.08)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(item.x, item.y, item.w, item.h, 12);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = stageColor(item.stage);
-      ctx.fillRect(item.x + 10, item.y + 6, 12, 12);
-      ctx.fillStyle = "#173044";
-      ctx.textAlign = "left";
-      ctx.fillText(item.label, item.x + 30, item.y + 12);
-    });
-    const legendBottom = legendItems.length
-      ? Math.max(...legendItems.map((item) => item.y + item.h))
-      : 24;
-    const guideTop = legendBottom + 34;
+    const guideTop = 28;
     const plotBottom = height - 108;
     const plotCenterY = (guideTop + plotBottom) / 2;
     const stageMarks = scene.stages.map((stage, index) => {
