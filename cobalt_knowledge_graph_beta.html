@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cobalt Knowledge Graph Beta</title>
-<link rel="stylesheet" href="assets/cobalt_knowledge_graph.css?v=20260411c">
+<link rel="stylesheet" href="assets/cobalt_knowledge_graph.css?v=20260411e">
 <script src="assets/globe.gl.min.js"></script>
 <script src="assets/cobalt_geoscene_data.js"></script>
 </head>
@@ -12,7 +12,6 @@
   <div class="page-shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow">Cobalt Supply Chain Beta</div>
         <h1>cobalt knowledge graph beta</h1>
         <p>首页默认展示完整钴供应链全球图谱。点击节点或搜索企业 / 矿点 / 设施后，主图将只保留该主体对应的完整上下游链路。</p>
       </div>
@@ -79,9 +78,12 @@
             </div>
           </div>
           <div class="panel-body chain3d-body">
-            <div id="chain3dStatus" class="status-pill light">当前显示：完整全球钴供应链</div>
-            <div id="chain3dHint" class="chain3d-hint">拖动下方图谱可以旋转，滚轮可缩放；点击节点后会切换为该主体的完整上下游链。</div>
+            <div class="chain3d-toprail">
+              <div id="chain3dStatus" class="status-pill light">当前显示：完整全球钴供应链</div>
+              <div id="chain3dLegend" class="chain3d-legend-row"></div>
+            </div>
             <canvas id="chain3dCanvas"></canvas>
+            <div id="chain3dHint" class="chain3d-hint">拖动下方图谱可以旋转，滚轮可缩放；点击节点后会切换为该主体的完整上下游链。</div>
           </div>
         </section>
       </div>
@@ -167,6 +169,6 @@
 
   <div id="tooltip"></div>
 
-  <script src="assets/cobalt_knowledge_graph_app.js?v=20260411c"></script>
+  <script src="assets/cobalt_knowledge_graph_app.js?v=20260411e"></script>
 </body>
 </html>
