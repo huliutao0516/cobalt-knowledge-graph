@@ -6,6 +6,7 @@ GeoScene-style cobalt supply chain knowledge graph preview with a globe view, re
 
 - `index.html`
 - `cobalt_geoscene_preview.html`
+- `cobalt_knowledge_graph_beta.html`
 
 ## Local Preview
 
