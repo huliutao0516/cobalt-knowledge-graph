@@ -394,29 +394,6 @@ input[type="text"]:focus {
   cursor: grabbing;
 }
 
-#globe::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: min(56%, 620px);
-  aspect-ratio: 1 / 1;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.3), transparent 24%),
-    radial-gradient(circle at 70% 68%, rgba(2, 8, 16, 0.88), rgba(2, 8, 16, 0.18) 42%, transparent 64%),
-    url("earth_github_4096.jpg");
-  background-size: auto, auto, cover;
-  background-position: center, center, center;
-  box-shadow:
-    0 0 0 1px rgba(162, 214, 255, 0.16),
-    0 0 80px rgba(88, 166, 255, 0.16),
-    inset -34px -42px 74px rgba(2, 8, 16, 0.52),
-    inset 20px 12px 52px rgba(255, 255, 255, 0.08);
-  opacity: 0.82;
-}
-
 #globe::after {
   content: "";
   position: absolute;
