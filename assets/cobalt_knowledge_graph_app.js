@@ -29,8 +29,14 @@
     });
     return result;
   };
+  const stripDisplayArtifacts = (value) => String(value ?? "")
+    .replace(/(?:閳\?|閘\?|�\?)/g, "")
+    .replace(/[�]/g, "")
+    .replace(/\s*(?:閳|閘)\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const safeText = (value, fallback = "未标注") => {
-    const text = String(value ?? "").trim();
+    const text = stripDisplayArtifacts(value);
     return text || fallback;
   };
   const shortText = (value, limit = 22) => {
@@ -240,7 +246,7 @@
   });
 
   function compactLabelText(value) {
-    return String(value || "")
+    return stripDisplayArtifacts(value)
       .replace(/_\-_/g, ", ")
       .replace(/[|]/g, ", ")
       .replace(/\s+/g, " ")
@@ -832,12 +838,12 @@
           endLng: Number(target.lon),
           sourceColor: stageColor(tx.supplierStage),
           targetColor: stageColor(tx.buyerStage),
-          relation: `${displayStage(tx.supplierStage)} 閳?${displayStage(tx.buyerStage)}`,
+          relation: `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`,
           count: 0,
           weight: 0,
           txIds: [],
           sampleTxId: tx.id,
-          sampleTitle: `${entityTitle(tx.supplierFacilityId || tx.supplierCompanyId, tx.supplierCompany || tx.supplierFacility, { stage: tx.supplierStage })} 閳?${entityTitle(tx.buyerFacilityId || tx.buyerCompanyId, tx.buyerCompany || tx.buyerFacility, { stage: tx.buyerStage })}`
+          sampleTitle: `${entityTitle(tx.supplierFacilityId || tx.supplierCompanyId, tx.supplierCompany || tx.supplierFacility, { stage: tx.supplierStage })} → ${entityTitle(tx.buyerFacilityId || tx.buyerCompanyId, tx.buyerCompany || tx.buyerFacility, { stage: tx.buyerStage })}`
         });
       }
       const arc = arcMap.get(arcKey);
@@ -1074,7 +1080,7 @@
         counterpartId = tx.supplierFacilityId || tx.supplierCompanyId || "";
         counterpartName = entityTitle(counterpartId, tx.supplierCompany || tx.supplierFacility, { stage: tx.supplierStage });
         counterpartCountry = tx.supplierCountry;
-        route = `${displayStage(tx.supplierStage)} 閳?${displayStage(tx.buyerStage)}`;
+        route = `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`;
       }
 
       if (direction === "downstream" && role.downstreamExternal) {
@@ -1083,7 +1089,7 @@
         counterpartId = tx.buyerFacilityId || tx.buyerCompanyId || "";
         counterpartName = entityTitle(counterpartId, tx.buyerCompany || tx.buyerFacility, { stage: tx.buyerStage });
         counterpartCountry = tx.buyerCountry;
-        route = `${displayStage(tx.supplierStage)} 閳?${displayStage(tx.buyerStage)}`;
+        route = `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`;
       }
 
       if (!include) return;
@@ -1430,8 +1436,10 @@
 
   function renderEvidence(context) {
     const btn = byId("openEvidenceBtn");
+    const chainBtn = byId("chain3dEvidenceBtn");
     if (!context.entity) {
       btn.disabled = true;
+      if (chainBtn) chainBtn.disabled = true;
       byId("evidenceMeta").textContent = "\u8bf7\u5148\u9501\u5b9a\u4e00\u4e2a\u4e3b\u4f53";
       byId("evidenceProfile").innerHTML = "<div class='empty-state'>\u70b9\u51fb\u8282\u70b9\u6216\u641c\u7d22\u4e3b\u4f53\u540e\uff0c\u8fd9\u91cc\u4f1a\u663e\u793a\u5b83\u7684\u4e0a\u4e0b\u6e38\u8bc1\u636e\u94fe\u6761\u3002</div>";
       byId("evidenceUpstream").innerHTML = "";
@@ -1442,6 +1450,7 @@
     }
 
     btn.disabled = false;
+    if (chainBtn) chainBtn.disabled = false;
     const scope = graphSeedEntityIds(context.entity.id);
     const related = entityFocusedTransactions(context.base, context.entity.id);
     const upstream = groupedEvidenceTransactions(related.filter((tx) => txScopeRole(tx, scope).upstreamExternal), "upstream");
@@ -2121,6 +2130,12 @@
   byId("regionBackdrop").addEventListener("click", () => setRegionVisibility(false));
 
   byId("openEvidenceBtn").addEventListener("click", () => {
+    if (!state.selectedEntityId) return;
+    renderEvidence(computeContext());
+    setEvidenceVisibility(true);
+  });
+
+  byId("chain3dEvidenceBtn")?.addEventListener("click", () => {
     if (!state.selectedEntityId) return;
     renderEvidence(computeContext());
     setEvidenceVisibility(true);
