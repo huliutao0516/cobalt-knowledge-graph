@@ -54,6 +54,7 @@
     map.get(key).push(value);
   };
   const DEFAULT_CHAIN3D_VIEW = Object.freeze({ yaw: -0.34, pitch: 0.18, zoom: 1 });
+  const CHAIN3D_YAW_RANGE = Object.freeze({ min: DEFAULT_CHAIN3D_VIEW.yaw, max: DEFAULT_CHAIN3D_VIEW.yaw });
 
   const STAGE_LABELS = {
     "Artisanal mining": "手工采矿",
@@ -1063,6 +1064,11 @@
     return entityTitle(entityId, fallback, { stage });
   }
 
+  function summarizeHierarchyRoute(entityRoutes, stageRoutes) {
+    if (entityRoutes.size === 1) return [...entityRoutes][0];
+    return stageRoutes.size > 1 ? `${stageRoutes.size} 条阶段路径` : [...stageRoutes][0];
+  }
+
   function buildHierarchyGroups(entity, list, direction) {
     const groups = new Map();
     const scope = graphSeedEntityIds(entity.id);
@@ -1075,6 +1081,7 @@
       let counterpartName = "";
       let counterpartCountry = "";
       let route = "";
+      let stageRoute = "";
 
       if (direction === "upstream" && role.upstreamExternal) {
         include = true;
@@ -1083,6 +1090,7 @@
         counterpartName = entityTitle(counterpartId, tx.supplierCompany || tx.supplierFacility, { stage: tx.supplierStage });
         counterpartCountry = tx.supplierCountry;
         route = stageAwareRouteText(tx, { includeEntities: true });
+        stageRoute = stageOnlyRouteText(tx);
       }
 
       if (direction === "downstream" && role.downstreamExternal) {
@@ -1092,6 +1100,7 @@
         counterpartName = entityTitle(counterpartId, tx.buyerCompany || tx.buyerFacility, { stage: tx.buyerStage });
         counterpartCountry = tx.buyerCountry;
         route = stageAwareRouteText(tx, { includeEntities: true });
+        stageRoute = stageOnlyRouteText(tx);
       }
 
       if (!include) return;
@@ -1101,8 +1110,23 @@
       if (!groups.has(stage)) groups.set(stage, new Map());
       const bucket = groups.get(stage);
       const key = counterpartId || counterpartName;
-      if (!bucket.has(key)) bucket.set(key, { id: counterpartId, name: counterpartName, country: counterpartCountry, route, count: 0, txId: tx.id });
-      bucket.get(key).count += 1;
+      if (!bucket.has(key)) {
+        bucket.set(key, {
+          id: counterpartId,
+          name: counterpartName,
+          country: counterpartCountry,
+          route,
+          count: 0,
+          txId: tx.id,
+          entityRoutes: new Set(),
+          stageRoutes: new Set()
+        });
+      }
+      const entry = bucket.get(key);
+      entry.count += 1;
+      entry.entityRoutes.add(route);
+      entry.stageRoutes.add(stageRoute);
+      entry.route = summarizeHierarchyRoute(entry.entityRoutes, entry.stageRoutes);
     });
     return groups;
   }
@@ -1942,7 +1966,7 @@
         state.chain3d.lastX = event.clientX;
         state.chain3d.lastY = event.clientY;
         if (Math.abs(dx) + Math.abs(dy) > 1) state.chain3d.moved = true;
-        state.chain3d.yaw += dx * 0.008;
+        state.chain3d.yaw = clamp(state.chain3d.yaw + dx * 0.008, CHAIN3D_YAW_RANGE.min, CHAIN3D_YAW_RANGE.max);
         state.chain3d.pitch = clamp(state.chain3d.pitch + dy * 0.006, -1.02, 1.02);
         renderChain3D(computeContext());
         return;
