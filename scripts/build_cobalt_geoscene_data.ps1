@@ -272,6 +272,120 @@ foreach ($tx in $transactions) {
   })
 }
 
+$overridePath = Join-Path $root 'data\tenke_kfm_override.json'
+if (Test-Path $overridePath) {
+  $override = Get-Content $overridePath -Raw | ConvertFrom-Json
+  $replaceCompanyIds = @($override.replaceCompanyIds | ForEach-Object { "$_" })
+
+  if ($replaceCompanyIds.Count) {
+    $filteredTxItems = New-Object System.Collections.Generic.List[object]
+    foreach ($item in $txItems) {
+      if ($replaceCompanyIds -contains $item.supplierCompanyId -or $replaceCompanyIds -contains $item.buyerCompanyId) {
+        continue
+      }
+      $filteredTxItems.Add($item)
+    }
+    $txItems = $filteredTxItems
+
+    $filteredOperatorPairs = New-Object System.Collections.Generic.List[object]
+    foreach ($pair in $operatorPairs) {
+      if ($replaceCompanyIds -contains $pair.companyId) { continue }
+      $filteredOperatorPairs.Add($pair)
+    }
+    $operatorPairs = $filteredOperatorPairs
+  }
+
+  foreach ($source in @($override.sources)) {
+    if (-not $source) { continue }
+    $sourceMap["$($source.id)"] = [ordered]@{
+      id = "$($source.id)"
+      url = "$($source.url)"
+      host = "$($source.host)"
+    }
+  }
+
+  foreach ($entity in @($override.entities)) {
+    if (-not $entity) { continue }
+    $entry = [ordered]@{
+      id = "$($entity.id)"
+      type = "$($entity.type)"
+      name = "$($entity.name)"
+      searchLabel = if ($entity.searchLabel) { "$($entity.searchLabel)" } else { "$($entity.name)" }
+      country = "$($entity.country)"
+      lat = if ($null -ne $entity.lat) { [double]$entity.lat } else { $null }
+      lon = if ($null -ne $entity.lon) { [double]$entity.lon } else { $null }
+      roleTags = @($entity.roleTags | ForEach-Object { "$_" })
+      companyTypeTags = @($entity.companyTypeTags | ForEach-Object { "$_" })
+    }
+    if ($entry.type -eq 'facility') {
+      $entry.displayName = if ($entity.displayName) { "$($entity.displayName)" } else { "$($entity.name)" }
+      $entry.facilityType = "$($entity.facilityType)"
+      $entry.place = "$($entity.place)"
+      $facilityMap[$entry.id] = $entry
+    } else {
+      $companyMap[$entry.id] = $entry
+    }
+  }
+
+  foreach ($pair in @($override.operatorPairs)) {
+    if (-not $pair) { continue }
+    $operatorPairs.Add([ordered]@{
+      companyId = "$($pair.companyId)"
+      facilityId = "$($pair.facilityId)"
+      side = "$($pair.side)"
+    })
+  }
+
+  foreach ($tx in @($override.transactions)) {
+    if (-not $tx) { continue }
+    $txItems.Add([ordered]@{
+      id = "$($tx.id)"
+      nodeId = "$($tx.nodeId)"
+      supplierCompanyId = "$($tx.supplierCompanyId)"
+      supplierCompany = "$($tx.supplierCompany)"
+      buyerCompanyId = "$($tx.buyerCompanyId)"
+      buyerCompany = "$($tx.buyerCompany)"
+      supplierFacilityId = "$($tx.supplierFacilityId)"
+      supplierFacility = "$($tx.supplierFacility)"
+      buyerFacilityId = "$($tx.buyerFacilityId)"
+      buyerFacility = "$($tx.buyerFacility)"
+      supplierCountry = "$($tx.supplierCountry)"
+      buyerCountry = "$($tx.buyerCountry)"
+      supplierStage = "$($tx.supplierStage)"
+      buyerStage = "$($tx.buyerStage)"
+      chainLink = "$($tx.chainLink)"
+      inputCommodityIds = @($tx.inputCommodityIds | ForEach-Object { "$_" })
+      inputCommodities = @($tx.inputCommodities | ForEach-Object { "$_" })
+      outputCommodityIds = @($tx.outputCommodityIds | ForEach-Object { "$_" })
+      outputCommodities = @($tx.outputCommodities | ForEach-Object { "$_" })
+      sourceIds = @($tx.sourceIds | ForEach-Object { "$_" })
+      sourceCount = if ($null -ne $tx.sourceCount) { [int]$tx.sourceCount } else { 0 }
+      amountTonnesRaw = "$($tx.amountTonnesRaw)"
+      amountTonnesValue = if ($null -ne $tx.amountTonnesValue) { [double]$tx.amountTonnesValue } else { $null }
+      amountUnitsRaw = "$($tx.amountUnitsRaw)"
+      amountUnitsValue = if ($null -ne $tx.amountUnitsValue) { [double]$tx.amountUnitsValue } else { $null }
+      amountUsdRaw = "$($tx.amountUsdRaw)"
+      amountUsdValue = if ($null -ne $tx.amountUsdValue) { [double]$tx.amountUsdValue } else { $null }
+      amountYuanRaw = "$($tx.amountYuanRaw)"
+      amountYuanValue = if ($null -ne $tx.amountYuanValue) { [double]$tx.amountYuanValue } else { $null }
+      amountEnergyRaw = "$($tx.amountEnergyRaw)"
+      amountEnergyValue = if ($null -ne $tx.amountEnergyValue) { [double]$tx.amountEnergyValue } else { $null }
+      date = "$($tx.date)"
+      expectedDate = "$($tx.expectedDate)"
+      realised = "$($tx.realised)"
+      notes = @($tx.notes | ForEach-Object { "$_" })
+      hasQuantity = [bool]$tx.hasQuantity
+      hasDate = [bool]$tx.hasDate
+      sourceLat = if ($null -ne $tx.sourceLat) { [double]$tx.sourceLat } else { $null }
+      sourceLon = if ($null -ne $tx.sourceLon) { [double]$tx.sourceLon } else { $null }
+      sourcePointOrigin = "$($tx.sourcePointOrigin)"
+      targetLat = if ($null -ne $tx.targetLat) { [double]$tx.targetLat } else { $null }
+      targetLon = if ($null -ne $tx.targetLon) { [double]$tx.targetLon } else { $null }
+      targetPointOrigin = "$($tx.targetPointOrigin)"
+    })
+  }
+}
+
 $entities = @($companyMap.Values) + @($facilityMap.Values)
 $operatorPairsOut = @($operatorPairs | ForEach-Object { $_ })
 $transactionsOut = @($txItems | ForEach-Object { $_ })
