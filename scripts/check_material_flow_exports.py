@@ -20,14 +20,13 @@ svg_checks = {
         "TFM 物质流图",
         "Tenke Fungurume Mining (TFM)",
         "边宽代表 workbook 路径出现次数，节点按阶段从左到右展开。",
-        "阶段顺序：Mining → Smelting → Trading → Refining → Precursor → Cathode → Cell → Pack → EV / Scooter",
+        "阶段顺序：Mining → Smelting → Trading → Refining",
     ],
     EXPORT_DIR / "kfm_material_flow.svg": [
         "KFM 物质流图",
         "Kisanfu mine (KFM)",
         "边宽代表 workbook 路径出现次数，节点按阶段从左到右展开。",
-        "阶段顺序：Mining → Smelting → Trading → Refining → Precursor → Cathode → Cell → Pack → EV / Scooter",
-        "亿纬锂能股份有限公司",
+        "阶段顺序：Mining → Trading → Refining",
     ],
 }
 

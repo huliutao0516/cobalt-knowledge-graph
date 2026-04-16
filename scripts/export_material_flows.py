@@ -18,14 +18,14 @@ MINE_CONFIG = {
         "title": "TFM 物质流图",
         "root_name": "Tenke Fungurume Mining (TFM)",
         "subtitle": "边宽代表 workbook 路径出现次数，节点按阶段从左到右展开。",
-        "direction": "阶段顺序：Mining → Smelting → Trading → Refining → Precursor → Cathode → Cell → Pack → EV / Scooter",
+        "direction": "阶段顺序：Mining → Smelting → Trading → Refining",
     },
     "Kisanfu": {
         "slug": "kfm",
         "title": "KFM 物质流图",
         "root_name": "Kisanfu mine (KFM)",
         "subtitle": "边宽代表 workbook 路径出现次数，节点按阶段从左到右展开。",
-        "direction": "阶段顺序：Mining → Smelting → Trading → Refining → Precursor → Cathode → Cell → Pack → EV / Scooter",
+        "direction": "阶段顺序：Mining → Trading → Refining",
     },
 }
 
@@ -143,8 +143,7 @@ def build_layout(
     height = max(980, 300 + max_nodes * 78)
 
     node_w = 204
-    base_node_h = 40
-    line_height = 14
+    node_h = 40
     title_y = 92
     stage_y = 208
     top_y = 260
@@ -152,38 +151,24 @@ def build_layout(
     content_h = height - top_y - bottom_margin
 
     positions = {}
-    node_lines: Dict[Tuple[str, str], List[str]] = {}
-    node_heights: Dict[Tuple[str, str], float] = {}
     for col, stage in enumerate(STAGE_ORDER):
         items = stage_nodes[stage]
         x = 120 + col * 250
         count = max(len(items), 1)
-        if not items:
-            continue
-        for name in items:
-            lines = wrap_label(name, 28)
-            node_lines[(stage, name)] = lines
-            node_heights[(stage, name)] = base_node_h + max(0, len(lines) - 1) * line_height
-        total_node_h = sum(node_heights[(stage, name)] for name in items)
-        gap = max(8.0, (content_h - total_node_h) / (count + 1))
-        y_cursor = top_y + gap
-        for name in items:
-            node_h = node_heights[(stage, name)]
-            y = y_cursor + node_h / 2
+        gap = content_h / count
+        for idx, name in enumerate(items):
+            y = top_y + gap * idx + gap / 2
             positions[(stage, name)] = {"x": x, "y": y}
-            y_cursor += node_h + gap
 
     return {
         "stage_nodes": stage_nodes,
         "positions": positions,
         "node_w": node_w,
-        "line_height": line_height,
+        "node_h": node_h,
         "title_y": title_y,
         "stage_y": stage_y,
         "edge_weights": edge_weights,
         "node_weights": node_weights,
-        "node_lines": node_lines,
-        "node_heights": node_heights,
     }, width, height
 
 
@@ -212,7 +197,7 @@ def wrap_label(text: str, limit: int = 26) -> List[str]:
         remaining = remaining[limit:].lstrip()
     if remaining:
         chunks.append(remaining)
-    return chunks
+    return chunks[:2]
 
 
 def render_svg(config: dict, layout: dict, width: int, height: int) -> str:
@@ -268,18 +253,16 @@ def render_svg(config: dict, layout: dict, width: int, height: int) -> str:
         for name in layout["stage_nodes"][stage]:
             pos = layout["positions"][(stage, name)]
             x = pos["x"]
-            node_h = layout["node_heights"][(stage, name)]
-            y = pos["y"] - node_h / 2
+            y = pos["y"] - layout["node_h"] / 2
             color = STAGE_COLORS[stage]
             lines.append(
                 f'<g filter="url(#shadow)">'
-                f'<rect x="{x}" y="{y:.1f}" width="{layout["node_w"]}" height="{node_h:.1f}" rx="14" fill="white" stroke="{color}" stroke-width="2"/>'
-                f'<rect x="{x}" y="{y:.1f}" width="10" height="{node_h:.1f}" rx="14" fill="{color}"/>'
+                f'<rect x="{x}" y="{y:.1f}" width="{layout["node_w"]}" height="{layout["node_h"]}" rx="14" fill="white" stroke="{color}" stroke-width="2"/>'
+                f'<rect x="{x}" y="{y:.1f}" width="10" height="{layout["node_h"]}" rx="14" fill="{color}"/>'
             )
-            text_lines = layout["node_lines"][(stage, name)]
-            start_y = pos["y"] - (len(text_lines) - 1) * layout["line_height"] / 2 + 1
+            text_lines = wrap_label(name, 28)
             for idx, text in enumerate(text_lines):
-                ty = start_y + idx * layout["line_height"]
+                ty = pos["y"] + 1 + idx * 14 - (7 if len(text_lines) == 2 else 0)
                 lines.append(
                     f'<text x="{x + 18}" y="{ty:.1f}" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">{svg_escape(text)}</text>'
                 )
@@ -363,16 +346,13 @@ def render_png(config: dict, layout: dict, width: int, height: int, out_path: Pa
         color = STAGE_COLORS[stage]
         for name in layout["stage_nodes"][stage]:
             pos = layout["positions"][(stage, name)]
-            node_h = layout["node_heights"][(stage, name)]
-            text_lines = layout["node_lines"][(stage, name)]
             x = pos["x"] * scale
-            y = (pos["y"] - node_h / 2) * scale
-            box = (x, y, (pos["x"] + layout["node_w"]) * scale, (pos["y"] + node_h / 2) * scale)
+            y = (pos["y"] - layout["node_h"] / 2) * scale
+            box = (x, y, (pos["x"] + layout["node_w"]) * scale, (pos["y"] + layout["node_h"] / 2) * scale)
             draw.rounded_rectangle(box, radius=14 * scale, fill="white", outline=color, width=2 * scale)
-            draw.rounded_rectangle((x, y, x + 10 * scale, (pos["y"] + node_h / 2) * scale), radius=12 * scale, fill=color)
-            start_y = pos["y"] - (len(text_lines) - 1) * layout["line_height"] / 2 - 9
-            for idx, text in enumerate(text_lines):
-                ty = (start_y + idx * layout["line_height"]) * scale
+            draw.rounded_rectangle((x, y, x + 10 * scale, (pos["y"] + layout["node_h"] / 2) * scale), radius=12 * scale, fill=color)
+            for idx, text in enumerate(wrap_label(name, 28)):
+                ty = (pos["y"] - 11 + idx * 14 - (8 if len(wrap_label(name, 28)) == 2 else 0)) * scale
                 draw.text((x + 18 * scale, ty), text, font=node_font, fill="#111827")
             weight = layout["node_weights"][(stage, name)]
             weight_text = str(weight)
