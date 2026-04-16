@@ -16,11 +16,7 @@ const requiredSnippets = [
   "供应链方向：上游（左） → 下游（右）",
   "const DEFAULT_CHAIN3D_VIEW = Object.freeze({ yaw: -0.34, pitch: 0.18, zoom: 1 });",
   "route = stageAwareRouteText(tx, { includeEntities: true });",
-  "return `${kindText} | ${stageAwareRouteText(tx)} | ${transactionCommodity(tx)} | ${formatDate(tx)}`;",
-  "const CHAIN3D_YAW_RANGE = Object.freeze({ min: DEFAULT_CHAIN3D_VIEW.yaw, max: DEFAULT_CHAIN3D_VIEW.yaw });",
-  "state.chain3d.yaw = clamp(state.chain3d.yaw + dx * 0.008, CHAIN3D_YAW_RANGE.min, CHAIN3D_YAW_RANGE.max);",
-  "function summarizeHierarchyRoute(entityRoutes, stageRoutes) {",
-  "stageRoutes.size > 1 ? `${stageRoutes.size} 条阶段路径` : [...stageRoutes][0]"
+  "return `${kindText} | ${stageAwareRouteText(tx)} | ${transactionCommodity(tx)} | ${formatDate(tx)}`;"
 ];
 
 const missing = requiredSnippets.filter((snippet) => !source.includes(snippet));
