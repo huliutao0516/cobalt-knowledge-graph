@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -65,6 +66,8 @@ STAGE_COLORS = {
     "Electric car / scooter manufacturing": "#7ab6ff",
 }
 
+CJK_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
+
 
 def font_path() -> str | None:
     candidates = [
@@ -102,6 +105,16 @@ def parse_path_count(notes: List[str]) -> int:
     return 1
 
 
+def normalize_entity_name(name: str) -> str:
+    segments = [segment.strip() for segment in name.split("/") if segment.strip()]
+    if len(segments) == 1:
+        return name.strip()
+    english_segments = [segment for segment in segments if not CJK_PATTERN.search(segment)]
+    if english_segments:
+        return " / ".join(english_segments)
+    return segments[0]
+
+
 def load_edges_for_mine(mine: str) -> Tuple[Dict[Tuple[str, str, str, str], int], Dict[Tuple[str, str], int]]:
     payload = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     edge_weights: Dict[Tuple[str, str, str, str], int] = defaultdict(int)
@@ -113,8 +126,8 @@ def load_edges_for_mine(mine: str) -> Tuple[Dict[Tuple[str, str, str, str], int]
             continue
         left_stage = display_stage(tx["supplierStage"])
         right_stage = display_stage(tx["buyerStage"])
-        left_name = tx["supplierCompany"]
-        right_name = tx["buyerCompany"]
+        left_name = normalize_entity_name(tx["supplierCompany"])
+        right_name = normalize_entity_name(tx["buyerCompany"])
         weight = parse_path_count(notes)
         edge_weights[(left_stage, left_name, right_stage, right_name)] += weight
         node_weights[(left_stage, left_name)] += weight

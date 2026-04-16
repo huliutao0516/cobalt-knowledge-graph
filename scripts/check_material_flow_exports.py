@@ -27,6 +27,13 @@ svg_checks = {
         "Kisanfu mine (KFM)",
         "边宽代表 workbook 路径出现次数，节点按阶段从左到右展开。",
         "阶段顺序：Mining → Smelting → Trading → Refining → Precursor → Cathode → Cell → Pack → EV / Scooter",
+        "Huizhou Yiwei Lithium Energy",
+        "EVE Energy Co.,",
+    ],
+}
+
+svg_forbidden = {
+    EXPORT_DIR / "kfm_material_flow.svg": [
         "亿纬锂能股份有限公司",
     ],
 }
@@ -36,6 +43,9 @@ for path, snippets in svg_checks.items():
     for snippet in snippets:
         if snippet not in content:
             raise SystemExit(f"Missing '{snippet}' in {path}")
+    for forbidden in svg_forbidden.get(path, []):
+        if forbidden in content:
+            raise SystemExit(f"Unexpected '{forbidden}' in {path}")
 
 for path in required:
     if path.stat().st_size < 1024:
