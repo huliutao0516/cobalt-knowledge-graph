@@ -7,5 +7,6 @@ knowledge_graph_preview.html
 path_matrix.csv
 path_matrix.xlsx
 assets/earth_satellite_21600.jpg
+.worktrees/
 *.log
 Thumbs.db
