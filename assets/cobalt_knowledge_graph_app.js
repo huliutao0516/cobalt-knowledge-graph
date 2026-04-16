@@ -495,6 +495,27 @@
     };
   }
 
+  function chain3DNodeKey(point) {
+    const entity = point?.entityId ? entities.get(point.entityId) : null;
+    if (!entity || entity.type !== "facility") {
+      return `${point.entityId || point.key}::${point.stage}`;
+    }
+
+    const stageKey = normalizeLabelKey(point.stage || "");
+    const labelKey = normalizeLabelKey(entityTitle(point.entityId, point.name, { stage: point.stage, includePlace: false }) || point.name || "");
+    const placeKey = normalizeLabelKey(entityShortPlace(point.entityId, point.place || "") || point.place || "");
+    const countryKey = normalizeLabelKey(point.country || entity.country || "");
+
+    // Multiple facility ids can resolve to the same real-world site/stage combo
+    // (for example Kokkola "Refinery Precursor Plant"). Collapse them visually
+    // in the 3D chain so the graph does not draw duplicate same-name nodes.
+    if (labelKey && stageKey && placeKey) {
+      return `facility-visual::${labelKey}::${stageKey}::${placeKey}::${countryKey}`;
+    }
+
+    return `${point.entityId || point.key}::${point.stage}`;
+  }
+
   const state = {
     selectedEntityId: "",
     selectedTxId: "",
@@ -1475,8 +1496,8 @@
     list.forEach((tx) => {
       const source = sideNodeFromTx(tx, "source");
       const target = sideNodeFromTx(tx, "target");
-      const sourceKey = `${source.entityId || source.key}::${source.stage}`;
-      const targetKey = `${target.entityId || target.key}::${target.stage}`;
+      const sourceKey = chain3DNodeKey(source);
+      const targetKey = chain3DNodeKey(target);
 
       if (!nodeMap.has(sourceKey)) {
         nodeMap.set(sourceKey, {

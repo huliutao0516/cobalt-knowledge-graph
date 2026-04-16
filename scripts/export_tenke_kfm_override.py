@@ -210,6 +210,15 @@ def build_transactions(workbook_path: Path) -> List[dict]:
 
     deduped: "OrderedDict[tuple, dict]" = OrderedDict()
     for tx in raw_transactions:
+        # The workbook trace can surface Umicore in a "Smelting" column, but the
+        # published TFM/KFM chain should start Umicore at refining. Keep those
+        # smelting-stage Umicore branches out of the override snapshot so the
+        # focused chain view does not fabricate a false Umicore smelting node.
+        if tx["supplierCompanyId"] == "company::umicore-s-a" and tx["supplierStage"] == "Smelting":
+            continue
+        if tx["buyerCompanyId"] == "company::umicore-s-a" and tx["buyerStage"] == "Smelting":
+            continue
+
         key = (
             tx["supplierCompanyId"],
             tx["supplierFacilityId"],

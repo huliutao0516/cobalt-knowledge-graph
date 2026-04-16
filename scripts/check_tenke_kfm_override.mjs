@@ -111,4 +111,34 @@ if (!hasKfmOverrideEdge) {
   process.exit(1);
 }
 
+const unexpectedUmicoreSmelting = data.transactions.filter((tx) =>
+  tx.supplierCompanyId === "company::umicore-s-a"
+  && tx.supplierStage === "Smelting"
+  && String(tx.id || "").startsWith("transaction::override-tenke-kfm-")
+);
+
+if (unexpectedUmicoreSmelting.length) {
+  console.error("Unexpected Umicore smelting-stage override transactions remain in payload.");
+  console.error(unexpectedUmicoreSmelting.map((tx) => tx.id).join(", "));
+  process.exit(1);
+}
+
+const kokkolaRefiningFacilities = new Set(
+  data.transactions
+    .filter((tx) =>
+      tx.buyerCompanyId === "company::umicore-s-a"
+      && tx.buyerStage === "Refining"
+      && String(tx.buyerFacility || "").includes("Refinery Precursor Plant")
+      && String(tx.buyerCountry || "") === "Finland"
+    )
+    .map((tx) => tx.buyerFacilityId)
+    .filter(Boolean)
+);
+
+if (kokkolaRefiningFacilities.size > 1) {
+  console.error("Refining-stage Kokkola 'Refinery Precursor Plant' still resolves to multiple facility IDs.");
+  console.error([...kokkolaRefiningFacilities].join(", "));
+  process.exit(1);
+}
+
 console.log("Tenke/KFM override checks passed.");
