@@ -53,6 +53,7 @@
     if (!map.has(key)) map.set(key, []);
     map.get(key).push(value);
   };
+  const DEFAULT_CHAIN3D_VIEW = Object.freeze({ yaw: -0.34, pitch: 0.18, zoom: 1 });
 
   const STAGE_LABELS = {
     "Artisanal mining": "手工采矿",
@@ -509,9 +510,7 @@
     regionHoverKey: "",
     suppressViewSync: false,
     chain3d: {
-      yaw: -0.48,
-      pitch: 0.28,
-      zoom: 1,
+      ...DEFAULT_CHAIN3D_VIEW,
       hoverKey: "",
       dragActive: false,
       pointerDown: false,
@@ -1031,6 +1030,9 @@
     return entityTitle(entityId, fallback, { stage, includePlace: true, place });
   }
 
+  function stageOnlyRouteText(tx) { return `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`; }
+  function stageAwareRouteText(tx, { includeEntities = false } = {}) { if (!includeEntities) return stageOnlyRouteText(tx); return `${relationPrimaryLabel(tx, "supplier")} → ${relationPrimaryLabel(tx, "buyer")}`; }
+
   function relationTitle(tx, relationKind = "") {
     const sourceLabel = relationPrimaryLabel(tx, "supplier");
     const targetLabel = relationPrimaryLabel(tx, "buyer");
@@ -1049,7 +1051,7 @@
           : relationKind === "chain"
             ? "\u94fe\u8def\u5ef6\u4f38"
           : "\u5173\u952e\u5173\u7cfb";
-    return `${kindText} | ${displayStage(tx.supplierStage)} \u2192 ${displayStage(tx.buyerStage)} | ${transactionCommodity(tx)} | ${formatDate(tx)}`;
+    return `${kindText} | ${stageAwareRouteText(tx)} | ${transactionCommodity(tx)} | ${formatDate(tx)}`;
   }
 
   function stageRank(stage) {
@@ -1080,7 +1082,7 @@
         counterpartId = tx.supplierFacilityId || tx.supplierCompanyId || "";
         counterpartName = entityTitle(counterpartId, tx.supplierCompany || tx.supplierFacility, { stage: tx.supplierStage });
         counterpartCountry = tx.supplierCountry;
-        route = `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`;
+        route = stageAwareRouteText(tx, { includeEntities: true });
       }
 
       if (direction === "downstream" && role.downstreamExternal) {
@@ -1089,7 +1091,7 @@
         counterpartId = tx.buyerFacilityId || tx.buyerCompanyId || "";
         counterpartName = entityTitle(counterpartId, tx.buyerCompany || tx.buyerFacility, { stage: tx.buyerStage });
         counterpartCountry = tx.buyerCountry;
-        route = `${displayStage(tx.supplierStage)} → ${displayStage(tx.buyerStage)}`;
+        route = stageAwareRouteText(tx, { includeEntities: true });
       }
 
       if (!include) return;
@@ -1595,6 +1597,29 @@
     ctx.fill();
   }
 
+  function drawChainDirectionGuide(ctx, width, guideTop, stageMarks) {
+    const left = 52;
+    const right = width - 52;
+    const guideLineY = guideTop + 24;
+    const stageLabelY = guideTop + 42;
+    ctx.textAlign = "center";
+    ctx.font = "600 14px 'Segoe UI', 'Microsoft YaHei', sans-serif";
+    ctx.fillStyle = "#133046";
+    ctx.fillText("供应链方向：上游（左） → 下游（右）", width / 2, guideTop + 8);
+    ctx.strokeStyle = "rgba(19, 48, 70, 0.24)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(left, guideLineY);
+    ctx.lineTo(right, guideLineY);
+    ctx.stroke();
+    drawArrow(ctx, right - 24, guideLineY, right, guideLineY, "rgba(19, 48, 70, 0.42)", 8);
+    ctx.font = "600 12px 'Segoe UI', 'Microsoft YaHei', sans-serif";
+    stageMarks.forEach((mark) => {
+      ctx.fillStyle = stageColor(mark.stage);
+      ctx.fillText(displayStage(mark.stage), mark.x, stageLabelY);
+    });
+  }
+
   function renderChain3D(context) {
     if (!chain3dCanvas) return;
     const rect = chain3dCanvas.getBoundingClientRect();
@@ -1618,8 +1643,8 @@
       ? `\u5f53\u524d\u663e\u793a\uff1a${entityTitle(context.entity.id, context.entity.name)} \u7684\u5b8c\u6574\u4e0a\u4e0b\u6e38\u94fe`
       : "\u5f53\u524d\u663e\u793a\uff1a\u5b8c\u6574\u5168\u7403\u94b4\u4f9b\u5e94\u94fe";
     byId("chain3dHint").textContent = context.entity
-      ? "\u62d6\u52a8\u4e09\u7ef4\u56fe\u8c31\u53ef\u65cb\u8f6c\uff0c\u6eda\u8f6e\u53ef\u7f29\u653e\uff1b\u5f53\u524d\u5df2\u8fc7\u6ee4\u5230\u6240\u9009\u4e3b\u4f53\u7684\u5b8c\u6574\u4e0a\u4e0b\u6e38\u94fe\u3002"
-      : "\u62d6\u52a8\u4e09\u7ef4\u56fe\u8c31\u53ef\u65cb\u8f6c\uff0c\u6eda\u8f6e\u53ef\u7f29\u653e\uff1b\u70b9\u51fb\u8282\u70b9\u540e\u4f1a\u5207\u6362\u4e3a\u8be5\u4e3b\u4f53\u7684\u5b8c\u6574\u4e0a\u4e0b\u6e38\u94fe\u3002";
+      ? "固定阶段顺序：上游（左）→ 下游（右）。可拖动旋转、滚轮缩放；当前只显示所选主体的完整上下游链。"
+      : "固定阶段顺序：上游（左）→ 下游（右）。可拖动旋转、滚轮缩放；点击节点后切换为该主体的完整上下游链。";
     syncChain3DBackButton();
     if (chain3dLegend) {
       chain3dLegend.innerHTML = scene.stages.map((stage) => `
@@ -1639,6 +1664,7 @@
       const x = ((index + 0.5) / Math.max(1, scene.stages.length)) * width;
       return { stage, x };
     });
+    drawChainDirectionGuide(ctx, width, guideTop, stageMarks);
     stageMarks.forEach((mark) => {
       ctx.strokeStyle = "rgba(16, 34, 49, 0.06)";
       ctx.lineWidth = 1;
@@ -1967,9 +1993,7 @@
       renderChain3D(computeContext());
     });
     byId("chain3dResetBtn")?.addEventListener("click", () => {
-      state.chain3d.yaw = -0.48;
-      state.chain3d.pitch = 0.28;
-      state.chain3d.zoom = 1;
+      Object.assign(state.chain3d, DEFAULT_CHAIN3D_VIEW);
       renderChain3D(computeContext());
     });
     byId("chain3dBackBtn")?.addEventListener("click", () => {
