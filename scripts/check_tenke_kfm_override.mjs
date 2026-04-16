@@ -45,6 +45,18 @@ if (!hasWorkbookNote) {
   process.exit(1);
 }
 
+const tradingIndex = (data.stageOrder || []).indexOf("Trading");
+const refiningIndex = (data.stageOrder || []).indexOf("Refining");
+if (tradingIndex === -1 || refiningIndex === -1) {
+  console.error("Missing Trading or Refining in payload stageOrder.");
+  process.exit(1);
+}
+
+if (tradingIndex > refiningIndex) {
+  console.error("Trading is still ordered after Refining in payload stageOrder.");
+  process.exit(1);
+}
+
 const stillHasLegacy = data.transactions.some((tx) => disallowedIds.has(tx.id));
 if (stillHasLegacy) {
   console.error("Legacy Tenke/KFM transactions are still present in the built payload.");
@@ -54,12 +66,36 @@ if (stillHasLegacy) {
 const hasTenkeOverrideEdge = data.transactions.some((tx) =>
   tx.supplierCompanyId === "company::tenke-fungurume-mining-tfm"
   && tx.buyerCompanyId === "company::ixm-sa"
-  && tx.supplierStage === "Mining"
+  && tx.supplierStage === "Smelting"
   && tx.buyerStage === "Trading"
 );
 
 if (!hasTenkeOverrideEdge) {
   console.error("Missing expected Tenke replacement edge (TFM -> IXM SA).");
+  process.exit(1);
+}
+
+const hasTenkeSmeltingStep = data.transactions.some((tx) =>
+  tx.supplierCompanyId === "company::tenke-fungurume-mining-tfm"
+  && tx.buyerCompanyId === "company::tenke-fungurume-mining-tfm"
+  && tx.supplierStage === "Mining"
+  && tx.buyerStage === "Smelting"
+);
+
+if (!hasTenkeSmeltingStep) {
+  console.error("Missing expected Tenke smelting step (Mining -> Smelting).");
+  process.exit(1);
+}
+
+const hasTradingToRefiningStep = data.transactions.some((tx) =>
+  tx.supplierCompanyId === "company::ixm-sa"
+  && tx.buyerCompanyId === "company::umicore-s-a"
+  && tx.supplierStage === "Trading"
+  && tx.buyerStage === "Refining"
+);
+
+if (!hasTradingToRefiningStep) {
+  console.error("Missing expected Tenke/KFM trading-to-refining step (IXM SA -> Umicore S.A.).");
   process.exit(1);
 }
 
