@@ -1,0 +1,423 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2460" height="2094" viewBox="0 0 2460 2094">
+<defs>
+<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.12"/></filter>
+</defs>
+<rect width="2460" height="2094" fill="#f6f8fb"/>
+<g filter="url(#shadow)"><rect x="88" y="34" width="2284" height="168" rx="18" fill="#ffffff" stroke="#dfe6ee" stroke-width="1.5"/></g>
+<text x="120" y="92" font-family="Microsoft YaHei, Arial, sans-serif" font-size="30" font-weight="700" fill="#111827">KFM 物质流图</text>
+<text x="120" y="126" font-family="Arial, sans-serif" font-size="17" font-weight="600" fill="#1f2937">Kisanfu mine (KFM)</text>
+<text x="120" y="156" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" fill="#4b5d73">边宽代表 workbook 路径出现次数，节点按阶段从左到右展开。</text>
+<text x="120" y="184" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" fill="#1f6fb9">阶段顺序：Mining → Trading → Refining</text>
+<rect x="104" y="226" width="234" height="1834" rx="22" fill="#c7d4e6" fill-opacity="0.17"/>
+<g><rect x="110" y="184" width="156" height="34" rx="17" fill="#3de2d8" fill-opacity="0.18"/><text x="120" y="208" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">Mining</text></g>
+<rect x="354" y="226" width="234" height="1834" rx="22" fill="#c7d4e6" fill-opacity="0.17"/>
+<g><rect x="360" y="184" width="156" height="34" rx="17" fill="#8fff68" fill-opacity="0.18"/><text x="370" y="208" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">Smelting</text></g>
+<rect x="604" y="226" width="234" height="1834" rx="22" fill="#c7d4e6" fill-opacity="0.17"/>
+<g><rect x="610" y="184" width="156" height="34" rx="17" fill="#ffd85a" fill-opacity="0.18"/><text x="620" y="208" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">Trading</text></g>
+<rect x="854" y="226" width="234" height="1834" rx="22" fill="#c7d4e6" fill-opacity="0.17"/>
+<g><rect x="860" y="184" width="156" height="34" rx="17" fill="#d6ff56" fill-opacity="0.18"/><text x="870" y="208" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">Refining</text></g>
+<rect x="1104" y="226" width="234" height="1834" rx="22" fill="#c7d4e6" fill-opacity="0.17"/>
+<g><rect x="1110" y="184" width="156" height="34" rx="17" fill="#ffae57" fill-opacity="0.18"/><text x="1120" y="208" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">Precursor</text></g>
+<rect x="1354" y="226" width="234" height="1834" rx="22" fill="#c7d4e6" fill-opacity="0.17"/>
+<g><rect x="1360" y="184" width="156" height="34" rx="17" fill="#ff7d7d" fill-opacity="0.18"/><text x="1370" y="208" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">Cathode</text></g>
+<rect x="1604" y="226" width="234" height="1834" rx="22" fill="#c7d4e6" fill-opacity="0.17"/>
+<g><rect x="1610" y="184" width="156" height="34" rx="17" fill="#ff64c8" fill-opacity="0.18"/><text x="1620" y="208" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">Cell</text></g>
+<rect x="1854" y="226" width="234" height="1834" rx="22" fill="#c7d4e6" fill-opacity="0.17"/>
+<g><rect x="1860" y="184" width="156" height="34" rx="17" fill="#d18bff" fill-opacity="0.18"/><text x="1870" y="208" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">Pack</text></g>
+<rect x="2104" y="226" width="234" height="1834" rx="22" fill="#c7d4e6" fill-opacity="0.17"/>
+<g><rect x="2110" y="184" width="156" height="34" rx="17" fill="#7ab6ff" fill-opacity="0.18"/><text x="2120" y="208" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">EV / Scooter</text></g>
+<path d="M 1324.0 1554.5 C 1448.3 1554.5, 1495.7 1184.6, 1620.0 1184.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1074.0 1123.0 C 1303.3 1123.0, 1390.7 1184.6, 1620.0 1184.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1324.0 1554.5 C 1553.3 1554.5, 1640.7 972.9, 1870.0 972.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1324.0 1554.5 C 1553.3 1554.5, 1640.7 1648.3, 1870.0 1648.3" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1324.0 1554.5 C 1553.3 1554.5, 1640.7 372.6, 1870.0 372.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1074.0 1123.0 C 1408.3 1123.0, 1535.7 972.9, 1870.0 972.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1074.0 1123.0 C 1408.3 1123.0, 1535.7 1648.3, 1870.0 1648.3" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1074.0 1123.0 C 1408.3 1123.0, 1535.7 372.6, 1870.0 372.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1324.0 1554.5 C 1448.3 1554.5, 1495.7 1307.9, 1620.0 1307.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1324.0 1554.5 C 1448.3 1554.5, 1495.7 1431.2, 1620.0 1431.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1074.0 1698.3 C 1303.3 1698.3, 1390.7 1307.9, 1620.0 1307.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1074.0 1698.3 C 1303.3 1698.3, 1390.7 1431.2, 1620.0 1431.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1074.0 1123.0 C 1303.3 1123.0, 1390.7 1307.9, 1620.0 1307.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1074.0 1123.0 C 1303.3 1123.0, 1390.7 1431.2, 1620.0 1431.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 824.0 1338.8 C 1158.3 1338.8, 1285.7 1924.4, 1620.0 1924.4" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 324.0 1123.0 C 448.3 1123.0, 495.7 1770.2, 620.0 1770.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.29" fill="none"/>
+<path d="M 1574.0 907.2 C 1593.3 907.2, 1600.7 1184.6, 1620.0 1184.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1324.0 1554.5 C 1448.3 1554.5, 1495.7 938.1, 1620.0 938.1" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1324.0 1554.5 C 1448.3 1554.5, 1495.7 1061.4, 1620.0 1061.4" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1574.0 907.2 C 1698.3 907.2, 1745.7 972.9, 1870.0 972.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1574.0 907.2 C 1698.3 907.2, 1745.7 1648.3, 1870.0 1648.3" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1574.0 907.2 C 1698.3 907.2, 1745.7 372.6, 1870.0 372.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1074.0 1123.0 C 1303.3 1123.0, 1390.7 938.1, 1620.0 938.1" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1074.0 1123.0 C 1303.3 1123.0, 1390.7 1061.4, 1620.0 1061.4" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1574.0 907.2 C 1593.3 907.2, 1600.7 1307.9, 1620.0 1307.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1574.0 907.2 C 1593.3 907.2, 1600.7 1431.2, 1620.0 1431.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1324.0 691.5 C 1448.3 691.5, 1495.7 1554.5, 1620.0 1554.5" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1324.0 691.5 C 1448.3 691.5, 1495.7 1677.8, 1620.0 1677.8" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1324.0 691.5 C 1448.3 691.5, 1495.7 1801.1, 1620.0 1801.1" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1324.0 691.5 C 1343.3 691.5, 1350.7 1338.8, 1370.0 1338.8" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1324.0 691.5 C 1343.3 691.5, 1350.7 1770.2, 1370.0 1770.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1074.0 547.7 C 1303.3 547.7, 1390.7 1554.5, 1620.0 1554.5" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1074.0 547.7 C 1303.3 547.7, 1390.7 1677.8, 1620.0 1677.8" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1074.0 547.7 C 1303.3 547.7, 1390.7 1801.1, 1620.0 1801.1" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1074.0 547.7 C 1198.3 547.7, 1245.7 1338.8, 1370.0 1338.8" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1074.0 547.7 C 1198.3 547.7, 1245.7 1770.2, 1370.0 1770.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.45" fill="none"/>
+<path d="M 1574.0 907.2 C 1593.3 907.2, 1600.7 938.1, 1620.0 938.1" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 938.1 C 1843.3 938.1, 1850.7 447.6, 1870.0 447.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 1184.6 C 1843.3 1184.6, 1850.7 372.6, 1870.0 372.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 691.5 C 1843.3 691.5, 1850.7 972.9, 1870.0 972.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 691.5 C 1843.3 691.5, 1850.7 372.6, 1870.0 372.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1574.0 907.2 C 1593.3 907.2, 1600.7 1061.4, 1620.0 1061.4" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 1061.4 C 1843.3 1061.4, 1850.7 1798.4, 1870.0 1798.4" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 2074.0 1798.4 C 2093.3 1798.4, 2100.7 1166.2, 2120.0 1166.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 814.8 C 1843.3 814.8, 1850.7 1123.0, 1870.0 1123.0" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 2074.0 1648.3 C 2093.3 1648.3, 2100.7 734.6, 2120.0 734.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 938.1 C 1843.3 938.1, 1850.7 822.8, 1870.0 822.8" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 691.5 C 1948.3 691.5, 1995.7 648.4, 2120.0 648.4" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 691.5 C 1948.3 691.5, 1995.7 303.1, 2120.0 303.1" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 691.5 C 1948.3 691.5, 1995.7 1856.5, 2120.0 1856.5" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 691.5 C 1843.3 691.5, 1850.7 822.8, 1870.0 822.8" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 1061.4 C 1948.3 1061.4, 1995.7 1166.2, 2120.0 1166.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 1198.0, 1870.0 1198.0" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 972.9, 1870.0 972.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 1498.2, 1870.0 1498.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 1273.1, 1870.0 1273.1" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 1048.0, 1870.0 1048.0" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 1348.1, 1870.0 1348.1" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 1423.2, 1870.0 1423.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 1123.0, 1870.0 1123.0" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1574.0 475.8 C 1698.3 475.8, 1745.7 1723.3, 1870.0 1723.3" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 2074.0 1723.3 C 2093.3 1723.3, 2100.7 389.4, 2120.0 389.4" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 2074.0 1573.3 C 2093.3 1573.3, 2100.7 648.4, 2120.0 648.4" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 2074.0 1573.3 C 2093.3 1573.3, 2100.7 1942.9, 2120.0 1942.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 814.8 C 1948.3 814.8, 1995.7 820.9, 2120.0 820.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 814.8 C 1843.3 814.8, 1850.7 822.8, 1870.0 822.8" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1948.3 444.9, 1995.7 648.4, 2120.0 648.4" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1948.3 444.9, 1995.7 820.9, 2120.0 820.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1948.3 444.9, 1995.7 1511.4, 2120.0 1511.4" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 444.9 C 1948.3 444.9, 1995.7 1166.2, 2120.0 1166.2" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1574.0 475.8 C 1698.3 475.8, 1745.7 1873.4, 1870.0 1873.4" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1574.0 475.8 C 1698.3 475.8, 1745.7 1948.5, 1870.0 1948.5" stroke="#486179" stroke-opacity="0.22" stroke-width="2.71" fill="none"/>
+<path d="M 1824.0 568.2 C 1843.3 568.2, 1850.7 522.7, 1870.0 522.7" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1843.3 568.2, 1850.7 597.7, 1870.0 597.7" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1843.3 568.2, 1850.7 1048.0, 1870.0 1048.0" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1843.3 568.2, 1850.7 447.6, 1870.0 447.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1843.3 568.2, 1850.7 672.7, 1870.0 672.7" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1843.3 568.2, 1850.7 372.6, 1870.0 372.6" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1843.3 568.2, 1850.7 747.8, 1870.0 747.8" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1948.3 568.2, 1995.7 820.9, 2120.0 820.9" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1948.3 568.2, 1995.7 1338.8, 2120.0 1338.8" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1948.3 568.2, 1995.7 1425.0, 2120.0 1425.0" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1948.3 568.2, 1995.7 303.1, 2120.0 303.1" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1948.3 568.2, 1995.7 993.5, 2120.0 993.5" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1824.0 568.2 C 1843.3 568.2, 1850.7 822.8, 1870.0 822.8" stroke="#486179" stroke-opacity="0.22" stroke-width="2.82" fill="none"/>
+<path d="M 1324.0 1554.5 C 1448.3 1554.5, 1495.7 691.5, 1620.0 691.5" stroke="#486179" stroke-opacity="0.22" stroke-width="2.93" fill="none"/>
+<path d="M 1074.0 1123.0 C 1303.3 1123.0, 1390.7 691.5, 1620.0 691.5" stroke="#486179" stroke-opacity="0.22" stroke-width="2.93" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 1198.0, 1870.0 1198.0" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 1198.0 C 2093.3 1198.0, 2100.7 475.8, 2120.0 475.8" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 972.9, 1870.0 972.9" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 897.9 C 2093.3 897.9, 2100.7 1597.7, 2120.0 1597.7" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 1498.2, 1870.0 1498.2" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 897.9 C 2093.3 897.9, 2100.7 1252.5, 2120.0 1252.5" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 1498.2 C 2093.3 1498.2, 2100.7 1252.5, 2120.0 1252.5" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 1273.1, 1870.0 1273.1" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 1273.1 C 2093.3 1273.1, 2100.7 389.4, 2120.0 389.4" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 297.5 C 2093.3 297.5, 2100.7 820.9, 2120.0 820.9" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 297.5 C 2093.3 297.5, 2100.7 1338.8, 2120.0 1338.8" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 297.5 C 2093.3 297.5, 2100.7 1425.0, 2120.0 1425.0" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 297.5 C 2093.3 297.5, 2100.7 993.5, 2120.0 993.5" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 297.5 C 2093.3 297.5, 2100.7 389.4, 2120.0 389.4" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 1048.0, 1870.0 1048.0" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 297.5 C 2093.3 297.5, 2100.7 1079.8, 2120.0 1079.8" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 297.5 C 2093.3 297.5, 2100.7 475.8, 2120.0 475.8" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 297.5 C 2093.3 297.5, 2100.7 734.6, 2120.0 734.6" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 297.5 C 2093.3 297.5, 2100.7 562.0, 2120.0 562.0" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 297.5 C 2093.3 297.5, 2100.7 907.2, 2120.0 907.2" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 1348.1, 1870.0 1348.1" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 1348.1 C 2093.3 1348.1, 2100.7 1684.0, 2120.0 1684.0" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 1423.2, 1870.0 1423.2" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 2074.0 1423.2 C 2093.3 1423.2, 2100.7 1770.2, 2120.0 1770.2" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 1123.0, 1870.0 1123.0" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 897.9, 1870.0 897.9" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 522.7, 1870.0 522.7" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 597.7, 1870.0 597.7" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 447.6, 1870.0 447.6" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 672.7, 1870.0 672.7" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 372.6, 1870.0 372.6" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 747.8, 1870.0 747.8" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1574.0 475.8 C 1698.3 475.8, 1745.7 1573.3, 1870.0 1573.3" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 321.6 C 1948.3 321.6, 1995.7 648.4, 2120.0 648.4" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 321.6 C 1948.3 321.6, 1995.7 820.9, 2120.0 820.9" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 321.6 C 1948.3 321.6, 1995.7 1511.4, 2120.0 1511.4" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 321.6 C 1948.3 321.6, 1995.7 1166.2, 2120.0 1166.2" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 822.8, 1870.0 822.8" stroke="#486179" stroke-opacity="0.22" stroke-width="3.12" fill="none"/>
+<path d="M 1574.0 907.2 C 1593.3 907.2, 1600.7 691.5, 1620.0 691.5" stroke="#486179" stroke-opacity="0.22" stroke-width="3.45" fill="none"/>
+<path d="M 1574.0 475.8 C 1593.3 475.8, 1600.7 814.8, 1620.0 814.8" stroke="#486179" stroke-opacity="0.22" stroke-width="3.45" fill="none"/>
+<path d="M 2074.0 1123.0 C 2093.3 1123.0, 2100.7 993.5, 2120.0 993.5" stroke="#486179" stroke-opacity="0.22" stroke-width="3.45" fill="none"/>
+<path d="M 2074.0 1048.0 C 2093.3 1048.0, 2100.7 1079.8, 2120.0 1079.8" stroke="#486179" stroke-opacity="0.22" stroke-width="3.53" fill="none"/>
+<path d="M 1324.0 1554.5 C 1448.3 1554.5, 1495.7 568.2, 1620.0 568.2" stroke="#486179" stroke-opacity="0.22" stroke-width="3.68" fill="none"/>
+<path d="M 824.0 1338.8 C 843.3 1338.8, 850.7 1698.3, 870.0 1698.3" stroke="#486179" stroke-opacity="0.22" stroke-width="3.68" fill="none"/>
+<path d="M 1074.0 1698.3 C 1303.3 1698.3, 1390.7 568.2, 1620.0 568.2" stroke="#486179" stroke-opacity="0.22" stroke-width="3.68" fill="none"/>
+<path d="M 1074.0 1123.0 C 1303.3 1123.0, 1390.7 568.2, 1620.0 568.2" stroke="#486179" stroke-opacity="0.22" stroke-width="3.68" fill="none"/>
+<path d="M 2074.0 972.9 C 2093.3 972.9, 2100.7 648.4, 2120.0 648.4" stroke="#486179" stroke-opacity="0.22" stroke-width="3.75" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 897.9, 1870.0 897.9" stroke="#486179" stroke-opacity="0.22" stroke-width="3.75" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 522.7, 1870.0 522.7" stroke="#486179" stroke-opacity="0.22" stroke-width="3.75" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 597.7, 1870.0 597.7" stroke="#486179" stroke-opacity="0.22" stroke-width="3.75" fill="none"/>
+<path d="M 2074.0 297.5 C 2093.3 297.5, 2100.7 303.1, 2120.0 303.1" stroke="#486179" stroke-opacity="0.22" stroke-width="3.75" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 447.6, 1870.0 447.6" stroke="#486179" stroke-opacity="0.22" stroke-width="3.75" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 672.7, 1870.0 672.7" stroke="#486179" stroke-opacity="0.22" stroke-width="3.75" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 372.6, 1870.0 372.6" stroke="#486179" stroke-opacity="0.22" stroke-width="3.75" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 747.8, 1870.0 747.8" stroke="#486179" stroke-opacity="0.22" stroke-width="3.75" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 822.8, 1870.0 822.8" stroke="#486179" stroke-opacity="0.22" stroke-width="3.75" fill="none"/>
+<path d="M 2074.0 522.7 C 2093.3 522.7, 2100.7 303.1, 2120.0 303.1" stroke="#486179" stroke-opacity="0.22" stroke-width="4.09" fill="none"/>
+<path d="M 2074.0 597.7 C 2093.3 597.7, 2100.7 389.4, 2120.0 389.4" stroke="#486179" stroke-opacity="0.22" stroke-width="4.09" fill="none"/>
+<path d="M 2074.0 672.7 C 2093.3 672.7, 2100.7 734.6, 2120.0 734.6" stroke="#486179" stroke-opacity="0.22" stroke-width="4.09" fill="none"/>
+<path d="M 2074.0 747.8 C 2093.3 747.8, 2100.7 907.2, 2120.0 907.2" stroke="#486179" stroke-opacity="0.22" stroke-width="4.09" fill="none"/>
+<path d="M 2074.0 447.6 C 2093.3 447.6, 2100.7 475.8, 2120.0 475.8" stroke="#486179" stroke-opacity="0.22" stroke-width="4.34" fill="none"/>
+<path d="M 1324.0 1554.5 C 1343.3 1554.5, 1350.7 907.2, 1370.0 907.2" stroke="#486179" stroke-opacity="0.22" stroke-width="4.58" fill="none"/>
+<path d="M 1074.0 1123.0 C 1198.3 1123.0, 1245.7 907.2, 1370.0 907.2" stroke="#486179" stroke-opacity="0.22" stroke-width="4.58" fill="none"/>
+<path d="M 1574.0 907.2 C 1593.3 907.2, 1600.7 568.2, 1620.0 568.2" stroke="#486179" stroke-opacity="0.22" stroke-width="4.64" fill="none"/>
+<path d="M 2074.0 372.6 C 2093.3 372.6, 2100.7 562.0, 2120.0 562.0" stroke="#486179" stroke-opacity="0.22" stroke-width="4.80" fill="none"/>
+<path d="M 1824.0 444.9 C 1843.3 444.9, 1850.7 297.5, 1870.0 297.5" stroke="#486179" stroke-opacity="0.22" stroke-width="5.77" fill="none"/>
+<path d="M 1074.0 1123.0 C 1093.3 1123.0, 1100.7 1554.5, 1120.0 1554.5" stroke="#486179" stroke-opacity="0.22" stroke-width="6.05" fill="none"/>
+<path d="M 1324.0 691.5 C 1448.3 691.5, 1495.7 444.9, 1620.0 444.9" stroke="#486179" stroke-opacity="0.22" stroke-width="6.31" fill="none"/>
+<path d="M 1324.0 691.5 C 1448.3 691.5, 1495.7 321.6, 1620.0 321.6" stroke="#486179" stroke-opacity="0.22" stroke-width="6.31" fill="none"/>
+<path d="M 1074.0 547.7 C 1303.3 547.7, 1390.7 444.9, 1620.0 444.9" stroke="#486179" stroke-opacity="0.22" stroke-width="6.31" fill="none"/>
+<path d="M 1074.0 547.7 C 1303.3 547.7, 1390.7 321.6, 1620.0 321.6" stroke="#486179" stroke-opacity="0.22" stroke-width="6.31" fill="none"/>
+<path d="M 1324.0 691.5 C 1343.3 691.5, 1350.7 475.8, 1370.0 475.8" stroke="#486179" stroke-opacity="0.22" stroke-width="6.99" fill="none"/>
+<path d="M 1074.0 547.7 C 1198.3 547.7, 1245.7 475.8, 1370.0 475.8" stroke="#486179" stroke-opacity="0.22" stroke-width="6.99" fill="none"/>
+<path d="M 1824.0 321.6 C 1843.3 321.6, 1850.7 297.5, 1870.0 297.5" stroke="#486179" stroke-opacity="0.22" stroke-width="7.91" fill="none"/>
+<path d="M 824.0 1338.8 C 843.3 1338.8, 850.7 1123.0, 870.0 1123.0" stroke="#486179" stroke-opacity="0.22" stroke-width="8.35" fill="none"/>
+<path d="M 1574.0 475.8 C 1593.3 475.8, 1600.7 321.6, 1620.0 321.6" stroke="#486179" stroke-opacity="0.22" stroke-width="8.77" fill="none"/>
+<path d="M 324.0 1123.0 C 448.3 1123.0, 495.7 1338.8, 620.0 1338.8" stroke="#486179" stroke-opacity="0.22" stroke-width="8.90" fill="none"/>
+<path d="M 1074.0 547.7 C 1093.3 547.7, 1100.7 691.5, 1120.0 691.5" stroke="#486179" stroke-opacity="0.22" stroke-width="9.63" fill="none"/>
+<path d="M 324.0 1123.0 C 448.3 1123.0, 495.7 907.2, 620.0 907.2" stroke="#486179" stroke-opacity="0.22" stroke-width="9.63" fill="none"/>
+<path d="M 824.0 907.2 C 843.3 907.2, 850.7 547.7, 870.0 547.7" stroke="#486179" stroke-opacity="0.22" stroke-width="9.63" fill="none"/>
+<path d="M 824.0 475.8 C 843.3 475.8, 850.7 547.7, 870.0 547.7" stroke="#486179" stroke-opacity="0.22" stroke-width="13.97" fill="none"/>
+<path d="M 324.0 1123.0 C 448.3 1123.0, 495.7 475.8, 620.0 475.8" stroke="#486179" stroke-opacity="0.22" stroke-width="14.00" fill="none"/>
+<g filter="url(#shadow)"><rect x="120" y="1103.0" width="204" height="40" rx="14" fill="white" stroke="#3de2d8" stroke-width="2"/><rect x="120" y="1103.0" width="10" height="40" rx="14" fill="#3de2d8"/>
+<text x="138" y="1124.0" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Kisanfu mine (KFM)</text>
+<text x="310" y="1127.0" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">596</text></g>
+<g filter="url(#shadow)"><rect x="620" y="455.8" width="204" height="40" rx="14" fill="white" stroke="#ffd85a" stroke-width="2"/><rect x="620" y="455.8" width="10" height="40" rx="14" fill="#ffd85a"/>
+<text x="638" y="476.8" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Vin Metal Synergies Fzco</text>
+<text x="810" y="479.8" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">617</text></g>
+<g filter="url(#shadow)"><rect x="620" y="887.2" width="204" height="40" rx="14" fill="white" stroke="#ffd85a" stroke-width="2"/><rect x="620" y="887.2" width="10" height="40" rx="14" fill="#ffd85a"/>
+<text x="638" y="908.2" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">TRAXYS</text>
+<text x="810" y="911.2" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">308</text></g>
+<g filter="url(#shadow)"><rect x="620" y="1318.8" width="204" height="40" rx="14" fill="white" stroke="#ffd85a" stroke-width="2"/><rect x="620" y="1318.8" width="10" height="40" rx="14" fill="#ffd85a"/>
+<text x="638" y="1339.8" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">IXM SA</text>
+<text x="810" y="1342.8" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">264</text></g>
+<g filter="url(#shadow)"><rect x="620" y="1750.2" width="204" height="40" rx="14" fill="white" stroke="#ffd85a" stroke-width="2"/><rect x="620" y="1750.2" width="10" height="40" rx="14" fill="#ffd85a"/>
+<text x="638" y="1771.2" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Trafigura Group Pte. Ltd.</text>
+<text x="810" y="1774.2" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">1</text></g>
+<g filter="url(#shadow)"><rect x="870" y="527.7" width="204" height="40" rx="14" fill="white" stroke="#d6ff56" stroke-width="2"/><rect x="870" y="527.7" width="10" height="40" rx="14" fill="#d6ff56"/>
+<text x="888" y="541.7" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Ganzhou Tengyuan Cobalt Indu</text>
+<text x="888" y="555.7" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">strial Co Ltd</text>
+<text x="1060" y="551.7" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">834</text></g>
+<g filter="url(#shadow)"><rect x="870" y="1103.0" width="204" height="40" rx="14" fill="white" stroke="#d6ff56" stroke-width="2"/><rect x="870" y="1103.0" width="10" height="40" rx="14" fill="#d6ff56"/>
+<text x="888" y="1124.0" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Umicore S.A.</text>
+<text x="1060" y="1127.0" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">234</text></g>
+<g filter="url(#shadow)"><rect x="870" y="1678.3" width="204" height="40" rx="14" fill="white" stroke="#d6ff56" stroke-width="2"/><rect x="870" y="1678.3" width="10" height="40" rx="14" fill="#d6ff56"/>
+<text x="888" y="1692.3" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Electra Battery Materials Co</text>
+<text x="888" y="1706.3" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">rp</text>
+<text x="1060" y="1702.3" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">32</text></g>
+<g filter="url(#shadow)"><rect x="1120" y="671.5" width="204" height="40" rx="14" fill="white" stroke="#ffae57" stroke-width="2"/><rect x="1120" y="671.5" width="10" height="40" rx="14" fill="#ffae57"/>
+<text x="1138" y="685.5" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Ganzhou Tengyuan Cobalt Indu</text>
+<text x="1138" y="699.5" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">strial Co Ltd</text>
+<text x="1310" y="695.5" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">372</text></g>
+<g filter="url(#shadow)"><rect x="1120" y="1534.5" width="204" height="40" rx="14" fill="white" stroke="#ffae57" stroke-width="2"/><rect x="1120" y="1534.5" width="10" height="40" rx="14" fill="#ffae57"/>
+<text x="1138" y="1555.5" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Umicore S.A.</text>
+<text x="1310" y="1558.5" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">118</text></g>
+<g filter="url(#shadow)"><rect x="1370" y="455.8" width="204" height="40" rx="14" fill="white" stroke="#ff7d7d" stroke-width="2"/><rect x="1370" y="455.8" width="10" height="40" rx="14" fill="#ff7d7d"/>
+<text x="1388" y="476.8" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">XTC New Energy Materials</text>
+<text x="1560" y="479.8" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">320</text></g>
+<g filter="url(#shadow)"><rect x="1370" y="887.2" width="204" height="40" rx="14" fill="white" stroke="#ff7d7d" stroke-width="2"/><rect x="1370" y="887.2" width="10" height="40" rx="14" fill="#ff7d7d"/>
+<text x="1388" y="908.2" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Umicore S.A.</text>
+<text x="1560" y="911.2" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">120</text></g>
+<g filter="url(#shadow)"><rect x="1370" y="1318.8" width="204" height="40" rx="14" fill="white" stroke="#ff7d7d" stroke-width="2"/><rect x="1370" y="1318.8" width="10" height="40" rx="14" fill="#ff7d7d"/>
+<text x="1388" y="1339.8" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Hunan Changyuan Lico Co</text>
+<text x="1560" y="1342.8" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">4</text></g>
+<g filter="url(#shadow)"><rect x="1370" y="1750.2" width="204" height="40" rx="14" fill="white" stroke="#ff7d7d" stroke-width="2"/><rect x="1370" y="1750.2" width="10" height="40" rx="14" fill="#ff7d7d"/>
+<text x="1388" y="1771.2" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Ningbo Ronbay New Energy</text>
+<text x="1560" y="1774.2" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">4</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="301.6" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="301.6" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="315.6" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">CATL (Contemporary Amperex T</text>
+<text x="1638" y="329.6" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">echnology Co.)</text>
+<text x="1810" y="325.6" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">584</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="424.9" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="424.9" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="445.9" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Xiamen Tungsten</text>
+<text x="1810" y="448.9" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">292</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="548.2" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="548.2" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="569.2" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">LG Energy Solution (LGES)</text>
+<text x="1810" y="572.2" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">140</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="671.5" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="671.5" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="692.5" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Samsung SDI</text>
+<text x="1810" y="695.5" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">48</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="794.8" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="794.8" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="815.8" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">BYD Co. Ltd.</text>
+<text x="1810" y="818.8" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">24</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="918.1" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="918.1" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="932.1" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Automotive Cells Company (AC</text>
+<text x="1638" y="946.1" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">C)</text>
+<text x="1810" y="942.1" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">16</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="1041.4" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="1041.4" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="1062.4" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Tesla Inc.</text>
+<text x="1810" y="1065.4" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">16</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="1164.6" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="1164.6" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="1185.6" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">PowerCo</text>
+<text x="1810" y="1188.6" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">8</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="1287.9" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="1287.9" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="1308.9" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">L-H Battery Company, Inc.</text>
+<text x="1810" y="1311.9" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">5</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="1411.2" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="1411.2" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="1432.2" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Ultium Cells LLC</text>
+<text x="1810" y="1435.2" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">5</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="1534.5" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="1534.5" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="1548.5" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Hunan Yacheng New Materials</text>
+<text x="1638" y="1562.5" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Co.,Ltd.</text>
+<text x="1810" y="1558.5" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">4</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="1657.8" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="1657.8" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="1678.8" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Jinchuan Technology</text>
+<text x="1810" y="1681.8" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">4</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="1781.1" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="1781.1" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="1802.1" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Shanshan Co., Ltd.</text>
+<text x="1810" y="1805.1" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">4</text></g>
+<g filter="url(#shadow)"><rect x="1620" y="1904.4" width="204" height="40" rx="14" fill="white" stroke="#ff64c8" stroke-width="2"/><rect x="1620" y="1904.4" width="10" height="40" rx="14" fill="#ff64c8"/>
+<text x="1638" y="1925.4" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Ningbo Shanshan Co Ltd</text>
+<text x="1810" y="1928.4" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">1</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="277.5" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="277.5" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="298.5" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">LG Energy Solution (LGES)</text>
+<text x="2060" y="301.5" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">252</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="352.6" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="352.6" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="373.6" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Volkswagen Group</text>
+<text x="2060" y="376.6" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">74</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="427.6" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="427.6" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="448.6" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Mercedes-Benz</text>
+<text x="2060" y="451.6" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">58</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="502.7" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="502.7" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="523.7" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Hyundai Motor Group</text>
+<text x="2060" y="526.7" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">50</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="577.7" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="577.7" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="598.7" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">JV Company</text>
+<text x="2060" y="601.7" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">50</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="652.7" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="652.7" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="673.7" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Renault Group</text>
+<text x="2060" y="676.7" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">50</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="727.8" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="727.8" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="748.8" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Volvo Car Group</text>
+<text x="2060" y="751.8" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">50</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="802.8" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="802.8" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="823.8" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Stellantis</text>
+<text x="2060" y="826.8" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">41</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="877.9" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="877.9" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="898.9" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Bosch Ltd. (BOSCH)</text>
+<text x="2060" y="901.9" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">40</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="952.9" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="952.9" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="973.9" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">BMW Group</text>
+<text x="2060" y="976.9" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">36</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1028.0" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1028.0" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1049.0" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Mahindra Group</text>
+<text x="2060" y="1052.0" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">30</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1103.0" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1103.0" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1124.0" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Toyota Motor Corporation</text>
+<text x="2060" y="1127.0" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">28</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1178.0" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1178.0" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1199.0" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">BAIC Group</text>
+<text x="2060" y="1202.0" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">20</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1253.1" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1253.1" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1274.1" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Geely group</text>
+<text x="2060" y="1277.1" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">20</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1328.1" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1328.1" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1342.1" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Renault–Nissan–Mitsubishi Al</text>
+<text x="1888" y="1356.1" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">liance</text>
+<text x="2060" y="1352.1" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">20</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1403.2" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1403.2" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1424.2" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">SAIC Motor</text>
+<text x="2060" y="1427.2" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">20</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1478.2" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1478.2" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1499.2" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">SUN Mobility</text>
+<text x="2060" y="1502.2" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">20</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1553.3" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1553.3" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1567.3" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Huizhou Yiwei Lithium Energy</text>
+<text x="1888" y="1581.3" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Co., Ltd. / EVE Energy Co.,</text>
+<text x="2060" y="1577.3" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">16</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1628.3" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1628.3" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1649.3" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Envision AESC</text>
+<text x="2060" y="1652.3" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">8</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1703.3" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1703.3" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1724.3" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Gotion High tech Co Ltd</text>
+<text x="2060" y="1727.3" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">8</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1778.4" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1778.4" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1799.4" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Tesla Inc.</text>
+<text x="2060" y="1802.4" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">8</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1853.4" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1853.4" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1867.4" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Amperex Technology Limited (</text>
+<text x="1888" y="1881.4" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">ATL)</text>
+<text x="2060" y="1877.4" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">4</text></g>
+<g filter="url(#shadow)"><rect x="1870" y="1928.5" width="204" height="40" rx="14" fill="white" stroke="#d18bff" stroke-width="2"/><rect x="1870" y="1928.5" width="10" height="40" rx="14" fill="#d18bff"/>
+<text x="1888" y="1949.5" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">CALB Tech</text>
+<text x="2060" y="1952.5" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">4</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="283.1" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="283.1" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="304.1" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Hyundai Motor Group</text>
+<text x="2310" y="307.1" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">46</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="369.4" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="369.4" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="390.4" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Geely group</text>
+<text x="2310" y="393.4" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">41</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="455.8" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="455.8" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="476.8" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Mercedes-Benz</text>
+<text x="2310" y="479.8" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">41</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="542.0" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="542.0" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="563.0" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Volkswagen Group</text>
+<text x="2310" y="566.0" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">41</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="628.4" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="628.4" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="649.4" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">BMW Group</text>
+<text x="2310" y="652.4" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">36</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="714.6" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="714.6" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="735.6" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Renault Group</text>
+<text x="2310" y="738.6" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">33</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="800.9" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="800.9" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="821.9" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Ford Motor Company</text>
+<text x="2310" y="824.9" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">29</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="887.2" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="887.2" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="908.2" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Volvo Car Group</text>
+<text x="2310" y="911.2" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">29</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="973.5" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="973.5" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="994.5" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Toyota Motor Corporation</text>
+<text x="2310" y="997.5" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">25</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="1059.8" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="1059.8" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="1080.8" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Mahindra Group</text>
+<text x="2310" y="1083.8" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">21</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="1146.2" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="1146.2" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="1167.2" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Tesla Inc.</text>
+<text x="2310" y="1170.2" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">20</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="1232.5" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="1232.5" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="1253.5" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Terra Motors Corporation</text>
+<text x="2310" y="1256.5" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">16</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="1318.8" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="1318.8" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="1339.8" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">General Motors Co.</text>
+<text x="2310" y="1342.8" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">13</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="1405.0" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="1405.0" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="1426.0" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Honda Motor Co. Ltd.</text>
+<text x="2310" y="1429.0" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">13</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="1491.4" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="1491.4" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="1505.4" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Honda Motor China Investment</text>
+<text x="2138" y="1519.4" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Co. Ltd.</text>
+<text x="2310" y="1515.4" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">12</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="1577.7" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="1577.7" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="1598.7" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Peugeot Scooters</text>
+<text x="2310" y="1601.7" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">8</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="1664.0" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="1664.0" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="1678.0" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Renault–Nissan–Mitsubishi Al</text>
+<text x="2138" y="1692.0" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">liance</text>
+<text x="2310" y="1688.0" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">8</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="1750.2" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="1750.2" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="1771.2" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">SAIC Motor</text>
+<text x="2310" y="1774.2" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">8</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="1836.5" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="1836.5" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="1857.5" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Okai</text>
+<text x="2310" y="1860.5" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">4</text></g>
+<g filter="url(#shadow)"><rect x="2120" y="1922.9" width="204" height="40" rx="14" fill="white" stroke="#7ab6ff" stroke-width="2"/><rect x="2120" y="1922.9" width="10" height="40" rx="14" fill="#7ab6ff"/>
+<text x="2138" y="1936.9" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Segway-Ninebot / Nine Robot</text>
+<text x="2138" y="1950.9" font-family="Arial, sans-serif" font-size="12.5" fill="#111827">Co., Ltd.</text>
+<text x="2310" y="1946.9" text-anchor="end" font-family="Arial, sans-serif" font-size="11.5" fill="#64748b">4</text></g>
+</svg>
